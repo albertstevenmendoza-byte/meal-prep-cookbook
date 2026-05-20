@@ -555,7 +555,7 @@ function switchView(id) {
   });
 
   // Per-view refresh
-  if (id === 'plan'      && STATE.plan)  renderPlan();
+  if (id === 'plan') { STATE.plan ? renderPlan() : renderPlanEmptyState(); }
   if (id === 'foods')                    renderFoodLib();
   if (id === 'grocery')                  renderGrocery();
   if (id === 'community')               { renderFeed(); renderSidebarWidgets(); }
@@ -765,6 +765,26 @@ function renderPlan() {
   });
 
   renderDayMeals(plan.days[STATE.active_day]);
+}
+
+function renderPlanEmptyState() {
+  // Show a friendly prompt when the user lands on Plan before generating
+  document.getElementById('planHeading').textContent = 'Your Week';
+  document.getElementById('planSub').textContent     = 'Generate a plan to see it here.';
+  document.getElementById('mCal').textContent  = '—';
+  document.getElementById('mPro').innerHTML   = '—';
+  document.getElementById('mCarb').innerHTML  = '—';
+  document.getElementById('mFat').innerHTML   = '—';
+  document.getElementById('mPrep').textContent = '—';
+  document.getElementById('dayStrip').innerHTML  = '';
+  document.getElementById('mealsArea').innerHTML = `
+    <div class="plan-empty-state">
+      <div class="plan-empty-icon">🗓️</div>
+      <div class="plan-empty-title">No plan yet</div>
+      <p class="plan-empty-sub">Head to Setup, pick your foods and goals, then tap <em>Generate My Meal Plan</em>.</p>
+      <button class="btn-gold" onclick="switchView('onboarding')" style="margin-top:.5rem">Go to Setup →</button>
+    </div>
+  `;
 }
 
 function renderDayMeals(day) {
@@ -1269,6 +1289,18 @@ function initComposer() {
       document.getElementById('promoteExtra').style.display = STATE.post_type === 'promote' ? 'flex' : 'none';
     });
   });
+
+  // Image URL toggle — show/hide the URL field on button click
+  const imgToggle = document.getElementById('composerImgToggle');
+  const imgInput  = document.getElementById('composerImgInput');
+  if (imgToggle && imgInput) {
+    imgToggle.addEventListener('click', () => {
+      const isOpen = imgInput.style.display !== 'none';
+      imgInput.style.display = isOpen ? 'none' : 'block';
+      imgToggle.classList.toggle('active', !isOpen);
+      if (!isOpen) { imgInput.focus(); imgInput.select(); }
+    });
+  }
 
   // Submit
   document.getElementById('composerSubmit').addEventListener('click', publishPost);
@@ -2856,6 +2888,7 @@ function initAlgoControls() {
 const _origSwitchView = switchView;
 window.switchView = function(id) {
   _origSwitchView(id);
+  if (id === 'plan' && !STATE.plan) { renderPlanEmptyState(); }
   if (id === 'messages')  { renderConvList(); }
   if (id === 'creator')   { renderCreatorDashboard(); }
   if (id === 'shop')      { renderProducts(shopFilter); renderCart(); }
