@@ -1554,3 +1554,1331 @@ async function boot() {
 }
 
 document.addEventListener('DOMContentLoaded', boot);
+
+/* ═══════════════════════════════════════════════════════════════════
+   §20  FEED ALGORITHM ENGINE
+   ---------------------------------------------------------------
+   Simulates ML-driven personalization using micro-behavior signals.
+   Supabase future: `feed_events` table + Edge Function for scoring.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const AFFINITY = {
+  categories: { post: 0, recipe: 0, promote: 0, ad: 0 },
+  tags: {},
+  totalPauseSeconds: 0,
+  lastRescoreAt: 0,
+};
+
+/** Score a single post based on accumulated affinity. */
+function scorePost(post) {
+  let score = 1;
+  score += (AFFINITY.categories[post.type] || 0) * 1.8;
+  (post.tags || []).forEach(t => { score += (AFFINITY.tags[t] || 0) * 2.2; });
+  score += Math.log10(Math.max(1, post.likes_count || 0)) * 0.6;
+  if (post.is_liked) score *= 0.4;
+  if (post.is_ad)    score *= (ALGO_PREFS.showAds ? 0.35 : 0);
+  // Muted keyword filter
+  const content = (post.content || '').toLowerCase();
+  if (ALGO_PREFS.mutedKeywords.some(kw => content.includes(kw.toLowerCase()))) score = -99;
+  // Preferred content boost
+  if (ALGO_PREFS.preferredTypes.includes(post.type)) score *= 1.5;
+  return Math.max(0, score);
+}
+
+/** Re-sort feed posts by affinity score and re-render. */
+function reScoreFeed() {
+  const now = Date.now();
+  if (now - AFFINITY.lastRescoreAt < 8000) return; // debounce
+  AFFINITY.lastRescoreAt = now;
+
+  STATE.posts = [...STATE.posts].map(p => ({ ...p, _score: scorePost(p) }))
+    .sort((a, b) => b._score - a._score);
+
+  // Inject native ads at fixed positions
+  const withAds = injectNativeAds(STATE.posts);
+  renderFeedCards(withAds, STATE.feed_filter);
+
+  // Update sidebar score breakdown
+  renderFeedScoreBreakdown();
+
+  // Show notice if meaningful personalization exists
+  const totalAffinity = Object.values(AFFINITY.categories).reduce((a, b) => a + b, 0)
+                      + Object.values(AFFINITY.tags).reduce((a, b) => a + b, 0);
+  if (totalAffinity > 3) {
+    const notice = document.getElementById('feedRefreshNotice');
+    if (notice) notice.style.display = 'flex';
+  }
+}
+
+function renderFeedScoreBreakdown() {
+  const el = document.getElementById('feedScoreBreakdown');
+  if (!el) return;
+  const cats = Object.entries(AFFINITY.categories).filter(([,v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  if (!cats.length) { el.innerHTML = '<p style="font-size:.8rem;color:var(--ink-muted)">Engage with posts to personalize your feed.</p>'; return; }
+  const maxVal = Math.max(...cats.map(([,v]) => v), 1);
+  el.innerHTML = cats.map(([cat, val]) => `
+    <div class="fsb-row">
+      <span class="fsb-label">${cat}</span>
+      <div class="fsb-bar-wrap"><div class="fsb-bar" style="width:${Math.round(val/maxVal*100)}%"></div></div>
+      <span class="fsb-val">${val.toFixed(1)}</span>
+    </div>
+  `).join('');
+}
+
+/** Apply "For You" / "Following" / "Trending" mode to posts. */
+function applyFeedMode(posts, mode) {
+  if (mode === 'foryou') {
+    return [...posts].map(p => ({ ...p, _score: scorePost(p) })).sort((a, b) => b._score - a._score);
+  }
+  if (mode === 'trending') {
+    return [...posts].sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0));
+  }
+  // "following" — simulate with subset
+  const followedIds = ['u1','u2','u3'];
+  return posts.filter(p => followedIds.includes(p.user_id));
+}
+
+window.dismissFeedNotice = function() {
+  const n = document.getElementById('feedRefreshNotice');
+  if (n) n.style.display = 'none';
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   §21  MICRO-BEHAVIOR OBSERVER (IntersectionObserver)
+   ---------------------------------------------------------------
+   Tracks how long users view each post. "Pauses" (>2s) boost
+   category/tag affinity. Triggers feed re-score after 30s of pauses.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const viewStartTimes = {};
+let   feedObserver = null;
+
+function recordMicroBehavior(postId, viewMs) {
+  const post = STATE.posts.find(p => p.id === postId);
+  if (!post || viewMs < 500) return;
+
+  const earnedCoins = viewMs > 5000 ? 2 : viewMs > 2000 ? 1 : 0;
+  if (earnedCoins > 0) {
+    STATE.wallet.coins += earnedCoins;
+    updateCoinDisplay();
+  }
+
+  if (viewMs < 2000) return; // not a meaningful pause
+
+  const weight = viewMs > 8000 ? 3 : viewMs > 4000 ? 1.5 : 0.6;
+  AFFINITY.categories[post.type] = (AFFINITY.categories[post.type] || 0) + weight;
+  (post.tags || []).forEach(tag => {
+    AFFINITY.tags[tag] = (AFFINITY.tags[tag] || 0) + weight * 0.8;
+  });
+
+  AFFINITY.totalPauseSeconds += viewMs / 1000;
+
+  // Re-score every 25 seconds of meaningful engagement
+  if (AFFINITY.totalPauseSeconds >= 25) {
+    AFFINITY.totalPauseSeconds = 0;
+    reScoreFeed();
+  }
+
+  // Transparency mode: update score display on card
+  if (ALGO_PREFS.transparencyMode) {
+    const el = document.querySelector(`[data-post-id="${postId}"] .post-relevance-score`);
+    if (el) el.textContent = `↑ Relevance: ${scorePost(post).toFixed(1)}`;
+  }
+}
+
+function observeFeedPosts() {
+  if (feedObserver) feedObserver.disconnect();
+
+  feedObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const postId = entry.target.dataset?.postId;
+      if (!postId) return;
+      if (entry.isIntersecting) {
+        viewStartTimes[postId] = Date.now();
+      } else {
+        if (viewStartTimes[postId]) {
+          recordMicroBehavior(postId, Date.now() - viewStartTimes[postId]);
+          delete viewStartTimes[postId];
+        }
+      }
+    });
+  }, { threshold: 0.4 });
+
+  document.querySelectorAll('.post-card[data-post-id]').forEach(el => feedObserver.observe(el));
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   §22  PRIVATE MESSAGING SYSTEM
+   Supabase tables: `conversations`, `messages`, `conversation_members`
+   ═══════════════════════════════════════════════════════════════════ */
+
+const CONVERSATIONS = [
+  {
+    id: 'conv-1', type: 'direct', name: null, participants: ['me','u1'], unread_count: 2,
+    last_msg: { sender_id: 'u1', content: 'Just tried your overnight oats recipe!', ts: '5m ago' },
+    messages: [
+      { id: 'msg-1', sender_id: 'u1', content: 'Hey! Loved your last post 🔥', type: 'text', ts: '1h ago' },
+      { id: 'msg-2', sender_id: 'me',  content: 'Thank you so much! It took all Sunday 😅', type: 'text', ts: '58m ago' },
+      { id: 'msg-3', sender_id: 'u1', content: 'Worth it. Do you batch the sauce separately?', type: 'text', ts: '55m ago' },
+      { id: 'msg-4', sender_id: 'me',  content: 'Yes! Always. Keeps everything fresh longer.', type: 'text', ts: '52m ago' },
+      { id: 'msg-5', sender_id: 'u1', content: 'Just tried your overnight oats recipe!', type: 'text', ts: '5m ago' },
+    ],
+  },
+  {
+    id: 'conv-2', type: 'group', name: 'Sunday Prep Crew 🥗', participants: ['me','u2','u3','u4'], unread_count: 5,
+    last_msg: { sender_id: 'u3', content: 'Who\'s prepping this weekend?', ts: '12m ago' },
+    messages: [
+      { id: 'mg-1', sender_id: 'u2', content: 'Big batch of quinoa going in the oven now 🌾', type: 'text', ts: '2h ago' },
+      { id: 'mg-2', sender_id: 'u4', content: 'Yes!! My lentil curry too', type: 'text', ts: '1h ago' },
+      { id: 'mg-3', sender_id: 'u3', content: 'Check this recipe out', type: 'post_share', post_id: 'p3', ts: '40m ago' },
+      { id: 'mg-4', sender_id: 'me',  content: 'Omg saving that immediately 🙌', type: 'text', ts: '35m ago' },
+      { id: 'mg-5', sender_id: 'u3', content: 'Who\'s prepping this weekend?', type: 'text', ts: '12m ago' },
+    ],
+  },
+  {
+    id: 'conv-3', type: 'direct', name: null, participants: ['me','u6'], unread_count: 0,
+    last_msg: { sender_id: 'me', content: 'Sounds amazing, I\'ll try it next week!', ts: '1d ago' },
+    messages: [
+      { id: 'mc-1', sender_id: 'u6', content: 'Want my smoky veggie medley recipe PDF?', type: 'text', ts: '2d ago' },
+      { id: 'mc-2', sender_id: 'me',  content: 'Sounds amazing, I\'ll try it next week!', type: 'text', ts: '1d ago' },
+    ],
+  },
+];
+
+let activeConvId = null;
+
+function renderConvList(filter = '') {
+  const list = document.getElementById('convList');
+  if (!list) return;
+  const convs = filter ? CONVERSATIONS.filter(c => {
+    const name = getConvDisplayName(c);
+    return name.toLowerCase().includes(filter.toLowerCase());
+  }) : CONVERSATIONS;
+
+  list.innerHTML = convs.map(c => {
+    const u = getConvOtherUser(c);
+    const name = getConvDisplayName(c);
+    return `
+      <div class="conv-item ${c.id === activeConvId ? 'active' : ''}" onclick="openThread('${c.id}')">
+        <div class="conv-avatar" style="background:${u.avatar_color}22;color:${u.avatar_color};border:1.5px solid ${u.avatar_color}44">${c.type === 'group' ? '👥' : u.avatar_initial}</div>
+        <div class="conv-info">
+          <div class="conv-name">${name}</div>
+          <div class="conv-preview">${c.last_msg?.content?.substring(0, 40) || ''}…</div>
+        </div>
+        <div class="conv-meta">
+          <span class="conv-time">${c.last_msg?.ts || ''}</span>
+          ${c.unread_count > 0 ? `<span class="conv-unread">${c.unread_count}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function getConvDisplayName(conv) {
+  if (conv.name) return conv.name;
+  const u = getConvOtherUser(conv);
+  return `@${u.username}`;
+}
+
+function getConvOtherUser(conv) {
+  const otherId = conv.participants.find(id => id !== 'me') || conv.participants[0];
+  return MOCK_USERS.find(u => u.id === otherId) || { username: 'unknown', avatar_initial: '?', avatar_color: '#888' };
+}
+
+function openThread(convId) {
+  activeConvId = convId;
+  const conv = CONVERSATIONS.find(c => c.id === convId);
+  if (!conv) return;
+
+  // Mark as read
+  conv.unread_count = 0;
+  renderConvList();
+
+  // Update message badge count
+  const total = CONVERSATIONS.reduce((s, c) => s + c.unread_count, 0);
+  const badge = document.getElementById('msgBadge');
+  if (badge) { badge.textContent = total; badge.style.display = total > 0 ? 'inline' : 'none'; }
+
+  const panel = document.getElementById('threadPanel');
+  if (!panel) return;
+
+  const otherUser  = getConvOtherUser(conv);
+  const headerName = conv.name || `@${otherUser.username}`;
+
+  panel.innerHTML = `
+    <div class="thread-header">
+      <div class="conv-avatar" style="width:34px;height:34px;background:${otherUser.avatar_color}22;color:${otherUser.avatar_color};font-size:.85rem">${conv.type === 'group' ? '👥' : otherUser.avatar_initial}</div>
+      <div class="thread-header-info">
+        <div class="thread-header-name">${headerName}</div>
+        <div class="thread-header-sub">${conv.type === 'group' ? conv.participants.length + ' members' : 'Direct message'}</div>
+      </div>
+    </div>
+    <div class="thread-messages" id="threadMessages"></div>
+    <div class="thread-compose">
+      <input type="text" id="threadInput" placeholder="Message ${headerName}…" />
+      <button class="btn-gold" id="threadSendBtn" style="padding:.6rem 1.1rem;font-size:.85rem">Send</button>
+    </div>
+  `;
+
+  renderMessages(conv);
+
+  document.getElementById('threadInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendThreadMessage(convId);
+  });
+  document.getElementById('threadSendBtn').addEventListener('click', () => sendThreadMessage(convId));
+
+  // Mobile: show thread panel
+  panel.classList.add('mobile-open');
+}
+window.openThread = openThread;
+
+function renderMessages(conv) {
+  const container = document.getElementById('threadMessages');
+  if (!container) return;
+  container.innerHTML = conv.messages.map(msg => {
+    const isMe = msg.sender_id === 'me';
+    const u = isMe
+      ? { avatar_initial: STATE.profile.name?.[0]?.toUpperCase() || 'M', avatar_color: '#d4a853' }
+      : (MOCK_USERS.find(x => x.id === msg.sender_id) || { avatar_initial: '?', avatar_color: '#888' });
+
+    if (msg.type === 'post_share') {
+      const sharedPost = STATE.posts.find(p => p.id === msg.post_id);
+      const sharedContent = sharedPost ? sharedPost.content?.substring(0, 60) + '…' : 'Shared post';
+      return `
+        <div class="msg-row ${isMe ? 'me' : 'them'}">
+          <div class="msg-avatar" style="background:${u.avatar_color}22;color:${u.avatar_color}">${u.avatar_initial}</div>
+          <div class="msg-post-share">
+            <div class="mps-type">📸 Shared Post</div>
+            <div class="mps-title">${sharedContent}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="msg-row ${isMe ? 'me' : 'them'}">
+        ${!isMe ? `<div class="msg-avatar" style="background:${u.avatar_color}22;color:${u.avatar_color}">${u.avatar_initial}</div>` : ''}
+        <div class="msg-bubble">${msg.content}</div>
+        ${isMe ? `<div class="msg-avatar" style="background:${u.avatar_color}22;color:${u.avatar_color}">${u.avatar_initial}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function sendThreadMessage(convId) {
+  const input = document.getElementById('threadInput');
+  const text = input?.value.trim();
+  if (!text) return;
+
+  const conv = CONVERSATIONS.find(c => c.id === convId);
+  if (!conv) return;
+
+  conv.messages.push({ id: `m-${Date.now()}`, sender_id: 'me', content: text, type: 'text', ts: 'just now' });
+  conv.last_msg = { sender_id: 'me', content: text, ts: 'just now' };
+  if (input) input.value = '';
+
+  renderMessages(conv);
+  renderConvList();
+}
+
+function sharePostToDM(postId) {
+  const bg = document.getElementById('dmShareBg');
+  const convs = document.getElementById('dmShareConvs');
+  if (!bg || !convs) return;
+
+  convs.innerHTML = CONVERSATIONS.map(c => {
+    const u = getConvOtherUser(c);
+    return `
+      <div class="dm-share-conv" onclick="sendPostToDM('${postId}','${c.id}')">
+        <div class="conv-avatar" style="width:34px;height:34px;background:${u.avatar_color}22;color:${u.avatar_color};font-size:.85rem">${c.type === 'group' ? '👥' : u.avatar_initial}</div>
+        <span style="font-weight:600;font-size:.88rem">${getConvDisplayName(c)}</span>
+      </div>
+    `;
+  }).join('');
+
+  bg.style.display = 'flex';
+}
+window.sharePostToDM = sharePostToDM;
+
+function sendPostToDM(postId, convId) {
+  const conv = CONVERSATIONS.find(c => c.id === convId);
+  if (!conv) return;
+  conv.messages.push({ id: `ms-${Date.now()}`, sender_id: 'me', content: '', type: 'post_share', post_id: postId, ts: 'just now' });
+  conv.last_msg = { sender_id: 'me', content: 'Shared a post', ts: 'just now' };
+  document.getElementById('dmShareBg').style.display = 'none';
+  toast('✓ Post shared to messages', 'ok');
+}
+window.sendPostToDM = sendPostToDM;
+
+/* ═══════════════════════════════════════════════════════════════════
+   §23  NATIVE ADVERTISING ENGINE
+   ---------------------------------------------------------------
+   Ads are styled identically to organic posts but carry a small
+   "Sponsored" label. Users can opt out via algo controls.
+   Supabase table: `ad_impressions` { id, ad_id, user_id, ts, action }
+   ═══════════════════════════════════════════════════════════════════ */
+
+const NATIVE_ADS = [
+  {
+    id: 'ad-1', is_ad: true, type: 'ad', user_id: 'ad-brand-1',
+    advertiser: 'MealKitPro', ad_avatar_initial: 'M', ad_avatar_color: '#5a8a6a',
+    content: 'Stop spending your whole Sunday cooking. MealKitPro delivers pre-portioned, macro-labeled ingredients to your door every Friday. Ready in under 20 minutes — with full macro tracking included.',
+    image_gradient: 'linear-gradient(135deg, #1a3a20 0%, #3a7a40 100%)',
+    image_emoji: '🥡', tags: ['#sponsored','#mealkits'],
+    cta_text: 'Get 30% Off First Box', cta_url: '#',
+    why_factors: [{ label: 'You engage with meal prep content', pct: 90 }, { label: 'Location: meal kit delivery area', pct: 70 }, { label: 'Interest: high-protein', pct: 60 }],
+    likes_count: 0, comments_count: 0, is_liked: false, is_saved: false, created_at: 'Sponsored', comments: [],
+  },
+  {
+    id: 'ad-2', is_ad: true, type: 'ad', user_id: 'ad-brand-2',
+    advertiser: 'MacroScale Pro', ad_avatar_initial: 'S', ad_avatar_color: '#d4a853',
+    content: 'The only kitchen scale built for serious meal preppers. Wi-Fi connected, syncs directly to your nutrition app, and tracks 47 macronutrients automatically. Zero manual entry.',
+    image_gradient: 'linear-gradient(135deg, #3a2a0a 0%, #d4a030 100%)',
+    image_emoji: '⚖️', tags: ['#sponsored','#kitchentools'],
+    cta_text: 'Shop MacroScale Pro', cta_url: '#',
+    why_factors: [{ label: 'You track macros and calories', pct: 95 }, { label: 'Interest: fitness equipment', pct: 55 }],
+    likes_count: 0, comments_count: 0, is_liked: false, is_saved: false, created_at: 'Sponsored', comments: [],
+  },
+];
+
+let adInjectionIndex = 0;
+
+/** Inject native ads at regular intervals in the post list. */
+function injectNativeAds(posts) {
+  if (!ALGO_PREFS.showAds) return posts;
+  const result = [...posts];
+  const adStep = 4; // every 4 organic posts
+  let insertAt = adStep;
+  let adIdx = 0;
+
+  while (insertAt < result.length && adIdx < NATIVE_ADS.length) {
+    result.splice(insertAt, 0, NATIVE_ADS[adIdx]);
+    insertAt += adStep + 1;
+    adIdx++;
+  }
+  return result;
+}
+
+function buildAdCard(ad) {
+  const badgeSvg = `<span class="ad-label">Sponsored</span>`;
+  return `
+    <article class="post-card native-ad" data-post-id="${ad.id}">
+      <div class="post-header">
+        <div class="post-avatar" style="background:#88882222;color:#888;font-size:.85rem">${ad.ad_avatar_initial}</div>
+        <div class="post-meta">
+          <span class="post-username">${ad.advertiser}</span>
+          <span class="post-time">${ad.created_at}</span>
+        </div>
+        ${badgeSvg}
+        <button class="pa-btn" style="margin-left:.25rem" onclick="showWhyShown('${ad.id}')" title="Why am I seeing this?">ℹ️</button>
+      </div>
+      <div class="post-img-placeholder" style="background:${ad.image_gradient}">${ad.image_emoji}</div>
+      <div class="post-content">${ad.content}</div>
+      <div class="post-tags">${(ad.tags||[]).map(t => `<span class="ptag ptag-gold">${t}</span>`).join('')}</div>
+      <div class="ad-cta-strip">
+        <span style="font-size:.78rem;color:var(--ink-muted)">Paid partnership</span>
+        <button class="ad-cta-btn" onclick="toast('Opening ${ad.advertiser}… (simulated)');">${ad.cta_text}</button>
+      </div>
+    </article>
+  `;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   §24  TIPPING & VIRTUAL ECONOMY
+   Supabase tables: `wallets`, `transactions`, `gift_events`
+   ═══════════════════════════════════════════════════════════════════ */
+
+// Merge wallet into STATE
+STATE.wallet = { coins: 150, lifetime_earned: 0, gifts_sent: 0 };
+
+const GIFT_ITEMS = [
+  { id: 'coffee',  emoji: '☕', name: 'Coffee',  cost: 10,  msg: 'Sent a coffee!' },
+  { id: 'star',    emoji: '⭐', name: 'Star',    cost: 50,  msg: 'Sent a star!' },
+  { id: 'trophy',  emoji: '🏆', name: 'Trophy',  cost: 100, msg: 'Sent a trophy!' },
+  { id: 'diamond', emoji: '💎', name: 'Diamond', cost: 250, msg: 'Sent a diamond!' },
+];
+
+let giftTargetUserId = null;
+
+function openGiftModal(userId, userName) {
+  giftTargetUserId = userId;
+  document.getElementById('giftRecipientName').textContent = userName || 'this creator';
+  document.getElementById('giftCoinBalance').textContent = STATE.wallet.coins;
+
+  const opts = document.getElementById('giftOptions');
+  opts.innerHTML = GIFT_ITEMS.map(g => `
+    <div class="gift-item ${STATE.wallet.coins < g.cost ? 'opacity-half' : ''}" onclick="sendGift('${g.id}')">
+      <span class="gift-emoji">${g.emoji}</span>
+      <span class="gift-name">${g.name}</span>
+      <span class="gift-cost">🪙 ${g.cost}</span>
+    </div>
+  `).join('');
+
+  document.getElementById('giftModalBg').style.display = 'flex';
+}
+window.openGiftModal = openGiftModal;
+
+window.closeGiftModal = function() { document.getElementById('giftModalBg').style.display = 'none'; };
+
+function sendGift(giftId) {
+  const gift = GIFT_ITEMS.find(g => g.id === giftId);
+  if (!gift) return;
+  if (STATE.wallet.coins < gift.cost) { toast('Not enough coins! Upgrade for more.', 'error'); return; }
+  STATE.wallet.coins -= gift.cost;
+  STATE.wallet.gifts_sent++;
+  updateCoinDisplay();
+  document.getElementById('giftCoinBalance').textContent = STATE.wallet.coins;
+  document.getElementById('giftModalBg').style.display = 'none';
+  toast(`${gift.emoji} ${gift.msg} (${gift.cost} coins)`, 'ok');
+}
+window.sendGift = sendGift;
+
+function updateCoinDisplay() {
+  const els = document.querySelectorAll('#sidebarCoinCount, #mobileCoinCount, #giftCoinBalance');
+  els.forEach(el => { if (el) el.textContent = STATE.wallet.coins; });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   §25  SOCIAL COMMERCE
+   Supabase tables: `products`, `cart_items`, `orders`, `storefronts`
+   ═══════════════════════════════════════════════════════════════════ */
+
+const PRODUCTS = [
+  { id: 'pr-1', seller_id: 'u1', name: 'Meal Prep Container Set (7-pack)', desc: 'BPA-free, microwave-safe, divided compartments. Stackable.', price: 34.99, emoji: '🥡', gradient: 'linear-gradient(135deg,#1a3a2a,#3a7a4a)', category: 'containers', rating: 4.8, sales: 234 },
+  { id: 'pr-2', seller_id: 'u5', name: 'Weekly Macro Tracker Journal', desc: '52-week planner with macro targets, habit tracking, and weekly reflections.', price: 18.99, emoji: '📔', gradient: 'linear-gradient(135deg,#3a2a0a,#8a6a2a)', category: 'tools', rating: 4.7, sales: 156 },
+  { id: 'pr-3', seller_id: 'u3', name: 'Protein Power Bundle', desc: '3 lbs whey isolate + shaker + measuring spoons. Best-seller.', price: 59.99, emoji: '💪', gradient: 'linear-gradient(135deg,#2a1a3a,#6a3a8a)', category: 'supplements', rating: 4.9, sales: 891 },
+  { id: 'pr-4', seller_id: 'u6', name: 'Chef\'s Spice Blending Kit', desc: '12 hand-blended spice mixes designed for meal prep. No fillers.', price: 27.50, emoji: '🌶️', gradient: 'linear-gradient(135deg,#3a0a0a,#8a2020)', category: 'pantry', rating: 4.6, sales: 412 },
+  { id: 'pr-5', seller_id: 'u8', name: '7-Day Meal Kit Box', desc: 'Fresh, chef-prepped ingredients for 7 macro-matched dinners. Free delivery.', price: 89.00, emoji: '📦', gradient: 'linear-gradient(135deg,#0a2a3a,#2a6a8a)', category: 'meal-kits', rating: 4.5, sales: 1203 },
+  { id: 'pr-6', seller_id: 'u2', name: 'Portion Control Plate Set', desc: 'Color-coded sections for protein, carbs, fats, and veg.', price: 22.00, emoji: '🍽️', gradient: 'linear-gradient(135deg,#2a2a2a,#5a5a5a)', category: 'containers', rating: 4.4, sales: 88 },
+];
+
+const CART = { items: {} }; // { product_id: { product, qty } }
+
+let shopFilter = 'all';
+
+function renderProducts(filter = 'all') {
+  shopFilter = filter;
+  const grid = document.getElementById('productGrid');
+  if (!grid) return;
+  const prods = filter === 'all' ? PRODUCTS : PRODUCTS.filter(p => p.category === filter);
+
+  grid.innerHTML = prods.map(p => {
+    const inCart = !!CART.items[p.id];
+    return `
+      <div class="product-card" onclick="openProductModal('${p.id}')">
+        <div class="product-image" style="background:${p.gradient}">
+          ${p.emoji}
+          <span class="product-seller-badge">by @${(MOCK_USERS.find(u => u.id === p.seller_id)||{}).username||'seller'}</span>
+        </div>
+        <div class="product-body">
+          <div class="product-name">${p.name}</div>
+          <div class="product-desc">${p.desc}</div>
+          <div class="product-footer">
+            <span class="product-price">$${p.price.toFixed(2)}</span>
+            <div>
+              <div class="product-rating">⭐ ${p.rating} (${p.sales})</div>
+              <button class="product-add ${inCart ? 'in-cart' : ''}" onclick="event.stopPropagation();addToCart('${p.id}')">
+                ${inCart ? '✓ Added' : '+ Cart'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function addToCart(productId) {
+  const prod = PRODUCTS.find(p => p.id === productId);
+  if (!prod) return;
+  if (CART.items[productId]) {
+    CART.items[productId].qty++;
+  } else {
+    CART.items[productId] = { product: prod, qty: 1 };
+  }
+  renderCart();
+  renderProducts(shopFilter);
+  toast(`${prod.emoji} Added to cart`, 'ok');
+
+  // Update nav badge
+  const badge = document.getElementById('cartNavBadge');
+  const total = Object.values(CART.items).reduce((s, x) => s + x.qty, 0);
+  if (badge) { badge.textContent = total; badge.style.display = total > 0 ? 'inline' : 'none'; }
+}
+window.addToCart = addToCart;
+
+function removeFromCart(productId) {
+  delete CART.items[productId];
+  renderCart();
+  renderProducts(shopFilter);
+  const badge = document.getElementById('cartNavBadge');
+  const total = Object.values(CART.items).reduce((s, x) => s + x.qty, 0);
+  if (badge) { badge.textContent = total; badge.style.display = total > 0 ? 'inline' : 'none'; }
+}
+window.removeFromCart = removeFromCart;
+
+function renderCart() {
+  const itemsEl  = document.getElementById('cartItems');
+  const footerEl = document.getElementById('cartFooter');
+  const countEl  = document.getElementById('cartCount');
+  if (!itemsEl) return;
+
+  const items = Object.values(CART.items);
+  if (countEl) countEl.textContent = `(${items.length})`;
+
+  if (!items.length) {
+    itemsEl.innerHTML = '<div class="cart-empty-msg">Your cart is empty</div>';
+    if (footerEl) footerEl.style.display = 'none';
+    return;
+  }
+
+  const subtotal = items.reduce((s, x) => s + x.product.price * x.qty, 0);
+  const fee      = subtotal * 0.05;
+  const total    = subtotal + fee;
+
+  itemsEl.innerHTML = items.map(({ product: p, qty }) => `
+    <div class="cart-item">
+      <span class="cart-item-emoji">${p.emoji}</span>
+      <div class="cart-item-info">
+        <div class="cart-item-name">${p.name}</div>
+        <div class="cart-item-price">$${(p.price * qty).toFixed(2)} × ${qty}</div>
+      </div>
+      <button class="cart-item-rm" onclick="removeFromCart('${p.id}')">✕</button>
+    </div>
+  `).join('');
+
+  if (footerEl) {
+    footerEl.style.display = 'block';
+    const totalEl = document.getElementById('cartTotal');
+    const feeEl   = document.getElementById('cartFee');
+    if (totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
+    if (feeEl)   feeEl.textContent   = `$${fee.toFixed(2)}`;
+  }
+}
+
+function openProductModal(productId) {
+  const p = PRODUCTS.find(x => x.id === productId);
+  if (!p) return;
+  const seller = MOCK_USERS.find(u => u.id === p.seller_id) || {};
+  const bg = document.getElementById('productModalBg');
+  const el = document.getElementById('productModalContent');
+  if (!bg || !el) return;
+
+  el.innerHTML = `
+    <button class="modal-x" onclick="document.getElementById('productModalBg').style.display='none'">×</button>
+    <div style="height:150px;border-radius:var(--r-md);margin-bottom:1.25rem;display:flex;align-items:center;justify-content:center;font-size:3.5rem;background:${p.gradient}">${p.emoji}</div>
+    <h3 style="font-family:var(--font-display);font-size:1.35rem;margin-bottom:.35rem">${p.name}</h3>
+    <p style="font-size:.84rem;color:var(--ink-muted);margin-bottom:.85rem">Sold by <strong>@${seller.username||'seller'}</strong> · ⭐ ${p.rating} · ${p.sales} sold</p>
+    <p style="font-size:.9rem;margin-bottom:1.25rem">${p.desc}</p>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem">
+      <span style="font-family:var(--font-display);font-size:2rem;color:var(--gold)">$${p.price.toFixed(2)}</span>
+      <button class="btn-gold" style="font-size:.95rem" onclick="addToCart('${p.id}');document.getElementById('productModalBg').style.display='none'">Add to Cart</button>
+    </div>
+  `;
+  bg.style.display = 'flex';
+}
+window.openProductModal = openProductModal;
+
+/* ═══════════════════════════════════════════════════════════════════
+   §26  CREATOR STUDIO
+   Revenue: ad revenue share (70% to creator) + tips.
+   B2B: anonymized aggregate data for brand partners.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const CREATOR_DATA = {
+  tier: 'Free',
+  total_views: 28_740, followers: 4_821, engagement_rate: 8.4,
+  ad_revenue:   87.40,   tip_revenue: 40.00,
+  revenue_share: 0.70,
+  payout_threshold: 50.00,
+  chart_data: [
+    { day: 'Mon', views: 320, engagement: 42 },
+    { day: 'Tue', views: 510, engagement: 71 },
+    { day: 'Wed', views: 290, engagement: 38 },
+    { day: 'Thu', views: 780, engagement: 104 },
+    { day: 'Fri', views: 1240, engagement: 167 },
+    { day: 'Sat', views: 2100, engagement: 283 },
+    { day: 'Sun', views: 1890, engagement: 256 },
+  ],
+};
+
+function renderCreatorDashboard() {
+  const cd = CREATOR_DATA;
+  const totalEarned = (cd.ad_revenue + cd.tip_revenue) * cd.revenue_share;
+
+  // Tier badge
+  const tierBadge = document.getElementById('creatorTierBadge');
+  if (tierBadge) tierBadge.textContent = `${cd.tier} Tier`;
+
+  // Stats row
+  const statsRow = document.getElementById('creatorStatsRow');
+  if (statsRow) {
+    const stats = [
+      { label: 'Total Earnings',   val: `$${totalEarned.toFixed(2)}`, delta: '+$12.40 this week', gold: true },
+      { label: 'Followers',        val: cd.followers.toLocaleString(), delta: '+127 this month' },
+      { label: 'Engagement Rate',  val: `${cd.engagement_rate}%`, delta: '↑ 0.8% vs last month' },
+      { label: 'Total Views',      val: cd.total_views.toLocaleString(), delta: '+2,840 this week' },
+    ];
+    statsRow.innerHTML = stats.map(s => `
+      <div class="creator-stat-card">
+        <div class="creator-stat-label">${s.label}</div>
+        <div class="creator-stat-val ${s.gold ? 'gold' : ''}">${s.val}</div>
+        <div class="creator-stat-delta">${s.delta}</div>
+      </div>
+    `).join('');
+  }
+
+  // Engagement chart
+  renderEngagementChart();
+
+  // Revenue breakdown
+  const revEl = document.getElementById('revenueBreakdown');
+  if (revEl) {
+    revEl.innerHTML = `
+      <div class="rev-row"><span class="rev-row-label">Ad revenue (70% share)</span><span class="rev-row-val positive">$${(cd.ad_revenue * cd.revenue_share).toFixed(2)}</span></div>
+      <div class="rev-row"><span class="rev-row-label">Ad revenue (platform 30%)</span><span class="rev-row-val" style="color:var(--ink-muted)">$${(cd.ad_revenue * 0.3).toFixed(2)}</span></div>
+      <div class="rev-row"><span class="rev-row-label">Tips received</span><span class="rev-row-val positive">$${cd.tip_revenue.toFixed(2)}</span></div>
+      <div class="rev-row" style="border-top:2px solid var(--border);margin-top:.25rem;padding-top:.65rem"><span style="font-weight:700">Total payout</span><span class="rev-row-val positive" style="font-size:1.2rem">$${totalEarned.toFixed(2)}</span></div>
+    `;
+    const noticeEl = document.getElementById('payoutNotice');
+    if (noticeEl) {
+      if (totalEarned >= cd.payout_threshold) {
+        noticeEl.innerHTML = '✓ Payout ready! Next transfer: Monday';
+        noticeEl.style.display = 'block';
+      } else {
+        noticeEl.innerHTML = `Need $${(cd.payout_threshold - totalEarned).toFixed(2)} more to reach payout threshold`;
+        noticeEl.style.display = 'block';
+      }
+    }
+  }
+
+  // Top posts table
+  const tpEl = document.getElementById('topPostsTable');
+  if (tpEl) {
+    const topPosts = STATE.posts.filter(p => !p.is_ad).sort((a, b) => (b.likes_count||0) - (a.likes_count||0)).slice(0, 5);
+    tpEl.innerHTML = topPosts.map((p, i) => {
+      const u = MOCK_USERS.find(x => x.id === p.user_id);
+      return `
+        <div class="top-posts-row">
+          <span class="tp-rank">${i + 1}</span>
+          <div class="tp-info"><div class="tp-title">${p.content?.substring(0, 50)}…</div><div class="tp-type">${p.type} · @${u?.username||'unknown'}</div></div>
+          <div class="tp-stats"><span>❤️ <strong>${p.likes_count}</strong></span><span>💬 <strong>${p.comments_count}</strong></span></div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Audience insights
+  const audiEl = document.getElementById('audienceGrid');
+  if (audiEl) {
+    audiEl.innerHTML = `
+      <div class="audience-metric">
+        <div class="audience-metric-label">Top location</div>
+        <div class="audience-metric-val">🇺🇸 US</div>
+        <div class="audience-metric-sub">68% of audience</div>
+      </div>
+      <div class="audience-metric">
+        <div class="audience-metric-label">Peak posting time</div>
+        <div class="audience-metric-val">6–8pm</div>
+        <div class="audience-metric-sub">Fri–Sun highest</div>
+      </div>
+      <div class="audience-metric" style="grid-column:1/-1">
+        <div class="audience-metric-label">Age distribution</div>
+        ${[['18–24',22],['25–34',41],['35–44',26],['45+',11]].map(([lbl, pct]) => `
+          <div class="audience-bar-row"><span>${lbl}</span><div class="aud-bar-wrap"><div class="aud-bar" style="width:${pct*2}%"></div></div><span>${pct}%</span></div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  // B2B grid
+  const b2bEl = document.getElementById('b2bGrid');
+  if (b2bEl) {
+    const metrics = [
+      { label: 'Avg. View Duration',   val: '38s',  sub: '+12% MoM' },
+      { label: 'Share Rate',           val: '6.2%', sub: 'Industry avg: 2.1%' },
+      { label: 'Save Rate',            val: '11.4%',sub: 'High intent signal' },
+      { label: 'Brand Mention Reach',  val: '18.2K',sub: 'Organic amplification' },
+      { label: 'Category Dominance',   val: '#mealprep', sub: 'Top tag in your niche' },
+      { label: 'Estimated CPM',        val: '$4.80', sub: 'Available for sponsorship' },
+    ];
+    b2bEl.innerHTML = metrics.map(m => `
+      <div class="b2b-metric">
+        <div class="b2b-metric-label">${m.label}</div>
+        <div class="b2b-metric-val">${m.val}</div>
+        <div class="b2b-metric-sub">${m.sub}</div>
+      </div>
+    `).join('');
+  }
+}
+
+function renderEngagementChart() {
+  const chartEl = document.getElementById('engagementChart');
+  if (!chartEl) return;
+  const maxViews = Math.max(...CREATOR_DATA.chart_data.map(d => d.views));
+  chartEl.innerHTML = CREATOR_DATA.chart_data.map(d => `
+    <div class="chart-col">
+      <div class="chart-bar-wrap">
+        <div class="chart-bar" style="height:${Math.round(d.views / maxViews * 100)}%"></div>
+      </div>
+      <span class="chart-label">${d.day}</span>
+    </div>
+  `).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   §27  ALGORITHM TRANSPARENCY & CONTROL
+   ═══════════════════════════════════════════════════════════════════ */
+
+const ALGO_PREFS = {
+  mutedKeywords:  [],
+  preferredTypes: [],
+  transparencyMode: false,
+  showAds: true,
+};
+
+const CONTENT_INTERESTS = [
+  { id: 'recipe', label: '📋 Recipes', type: 'recipe' },
+  { id: 'post',   label: '📸 Meals',   type: 'post' },
+  { id: 'hprot',  label: '💪 Protein', tag: '#highprotein' },
+  { id: 'plant',  label: '🌱 Plant',   tag: '#plantbased' },
+  { id: 'prep',   label: '📦 Prep',    tag: '#mealprep' },
+  { id: 'budget', label: '💰 Budget',  tag: '#budgetmeal' },
+];
+
+function openAlgoPanel() {
+  renderAlgoPanel();
+  document.getElementById('algoPanel').classList.add('open');
+  document.getElementById('algoPanelBackdrop').style.display = 'block';
+}
+function closeAlgoPanel() {
+  document.getElementById('algoPanel').classList.remove('open');
+  document.getElementById('algoPanelBackdrop').style.display = 'none';
+}
+
+function renderAlgoPanel() {
+  const grid = document.getElementById('algoInterestGrid');
+  if (grid) {
+    grid.innerHTML = CONTENT_INTERESTS.map(item => `
+      <div class="algo-interest-item ${ALGO_PREFS.preferredTypes.includes(item.id) ? 'on' : ''}"
+           onclick="toggleAlgoInterest('${item.id}')">
+        ${item.label}
+      </div>
+    `).join('');
+  }
+
+  const chips = document.getElementById('algoMutedChips');
+  if (chips) {
+    chips.innerHTML = ALGO_PREFS.mutedKeywords.map(kw => `
+      <div class="algo-muted-chip">${kw}<button onclick="removeMutedKeyword('${kw}')">✕</button></div>
+    `).join('');
+  }
+
+  const transTog = document.getElementById('algoTransparencyToggle');
+  if (transTog) transTog.checked = ALGO_PREFS.transparencyMode;
+
+  const adTog = document.getElementById('nativeAdToggle');
+  if (adTog) adTog.checked = ALGO_PREFS.showAds;
+}
+
+window.toggleAlgoInterest = function(id) {
+  const idx = ALGO_PREFS.preferredTypes.indexOf(id);
+  if (idx > -1) ALGO_PREFS.preferredTypes.splice(idx, 1);
+  else ALGO_PREFS.preferredTypes.push(id);
+  renderAlgoPanel();
+  reScoreFeed();
+};
+
+window.removeMutedKeyword = function(kw) {
+  ALGO_PREFS.mutedKeywords = ALGO_PREFS.mutedKeywords.filter(x => x !== kw);
+  renderAlgoPanel();
+  reScoreFeed();
+};
+
+function addMutedKeyword() {
+  const input = document.getElementById('muteInput');
+  const kw = input?.value.trim();
+  if (!kw || ALGO_PREFS.mutedKeywords.includes(kw)) return;
+  ALGO_PREFS.mutedKeywords.push(kw);
+  if (input) input.value = '';
+  renderAlgoPanel();
+  reScoreFeed();
+  toast(`🔇 Muted: "${kw}"`);
+}
+
+function resetFeed() {
+  Object.keys(AFFINITY.categories).forEach(k => { AFFINITY.categories[k] = 0; });
+  AFFINITY.tags = {};
+  AFFINITY.totalPauseSeconds = 0;
+  ALGO_PREFS.preferredTypes = [];
+  ALGO_PREFS.mutedKeywords  = [];
+  closeAlgoPanel();
+  STATE.posts = [...MOCK_POSTS];
+  renderFeed(STATE.feed_filter);
+  renderAlgoPanel();
+  renderFeedScoreBreakdown();
+  const notice = document.getElementById('feedRefreshNotice');
+  if (notice) notice.style.display = 'none';
+  toast('🔄 Feed reset! Starting fresh.');
+}
+
+// "Why am I seeing this?" modal
+let whyPostId = null;
+
+window.showWhyShown = function(postId) {
+  whyPostId = postId;
+  const post = [...STATE.posts, ...NATIVE_ADS].find(p => p.id === postId);
+  if (!post) return;
+
+  const bg   = document.getElementById('whyModalBg');
+  const body = document.getElementById('whyModalBody');
+  if (!bg || !body) return;
+
+  const isAd = post.is_ad;
+  const factors = isAd ? (post.why_factors || []) : [
+    { label: `Category: ${post.type} content`, pct: Math.min(100, (AFFINITY.categories[post.type]||0) * 20 + 40) },
+    { label: `Engagement: ${post.likes_count} likes`, pct: Math.min(100, Math.log10(Math.max(1, post.likes_count||0)) * 30 + 30) },
+    ...(post.tags||[]).slice(0,2).map(t => ({ label: `Your interest in ${t}`, pct: Math.min(100, (AFFINITY.tags[t]||0) * 15 + 20) })),
+  ];
+
+  body.innerHTML = `
+    <p style="font-size:.84rem;color:var(--ink-muted);margin-bottom:1rem">${isAd ? 'This is a paid advertisement.' : 'Mise ranked this post based on these factors:'}</p>
+    ${factors.map(f => `
+      <div class="why-factor">
+        <span class="why-factor-icon">📊</span>
+        <span style="flex:1;font-size:.84rem">${f.label}</span>
+        <div class="why-factor-bar-wrap"><div class="why-factor-bar" style="width:${f.pct}%"></div></div>
+      </div>
+    `).join('')}
+  `;
+
+  bg.style.display = 'flex';
+};
+
+document.getElementById('whyNotInterested')?.addEventListener('click', () => {
+  if (!whyPostId) return;
+  const post = STATE.posts.find(p => p.id === whyPostId);
+  if (post) {
+    AFFINITY.categories[post.type] = Math.max(0, (AFFINITY.categories[post.type]||0) - 1.5);
+    (post.tags||[]).forEach(t => { AFFINITY.tags[t] = Math.max(0, (AFFINITY.tags[t]||0) - 1); });
+  }
+  document.getElementById('whyModalBg').style.display = 'none';
+  reScoreFeed();
+  toast('👎 Noted — you\'ll see less like this.');
+});
+
+document.getElementById('whyMoreLikeThis')?.addEventListener('click', () => {
+  if (!whyPostId) return;
+  const post = STATE.posts.find(p => p.id === whyPostId);
+  if (post) {
+    AFFINITY.categories[post.type] = (AFFINITY.categories[post.type]||0) + 2;
+    (post.tags||[]).forEach(t => { AFFINITY.tags[t] = (AFFINITY.tags[t]||0) + 1.5; });
+  }
+  document.getElementById('whyModalBg').style.display = 'none';
+  reScoreFeed();
+  toast('👍 Got it — showing more like this!');
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   §28  SUBSCRIPTION & PREMIUM FEATURES
+   ═══════════════════════════════════════════════════════════════════ */
+
+const SUBSCRIPTION_TIERS = [
+  {
+    id: 'free', name: 'Free', price: 0, desc: 'Get started, no commitment.',
+    features: ['Community feed access','5 DMs per day','Basic meal planner','Standard ads in feed','100 coins welcome bonus'],
+    cta: 'Current Plan', current: true,
+  },
+  {
+    id: 'pro', name: 'Mise Pro', price: 8.99, desc: 'The full experience, no ads.',
+    features: ['Everything in Free','Ad-free feed','Unlimited DMs & group chats','Advanced food analytics','500 coins / month','Pro badge on profile','Priority feed ranking'],
+    cta: 'Upgrade to Pro', featured: true,
+  },
+  {
+    id: 'creator', name: 'Creator', price: 19.99, desc: 'For builders, chefs, and coaches.',
+    features: ['Everything in Pro','70% ad revenue share','Live streaming','Native storefront','B2B analytics export','Brand sponsorship marketplace','2,000 coins / month','Verified creator badge'],
+    cta: 'Become a Creator',
+  },
+];
+
+let currentSubscription = 'free';
+
+window.openSubModal = function() {
+  const el = document.getElementById('subTiers');
+  if (el) {
+    el.innerHTML = SUBSCRIPTION_TIERS.map(tier => `
+      <div class="sub-tier ${tier.featured ? 'featured' : ''} ${tier.id === currentSubscription ? 'current' : ''}">
+        <div class="sub-tier-name">${tier.name} ${tier.featured ? '⭐' : ''}</div>
+        <div class="sub-price">${tier.price === 0 ? 'Free' : `$${tier.price.toFixed(2)}`}<small>${tier.price > 0 ? '/mo' : ''}</small></div>
+        <div class="sub-desc">${tier.desc}</div>
+        <ul class="sub-features">${tier.features.map(f => `<li>${f}</li>`).join('')}</ul>
+        <button class="btn-gold sub-cta" ${tier.id === currentSubscription ? 'disabled style="opacity:.5"' : ''} onclick="subscribeTier('${tier.id}')">
+          ${tier.id === currentSubscription ? 'Current Plan' : tier.cta}
+        </button>
+      </div>
+    `).join('');
+  }
+  document.getElementById('subModalBg').style.display = 'flex';
+};
+
+window.subscribeTier = function(tierId) {
+  if (tierId === 'free') return;
+  const tier = SUBSCRIPTION_TIERS.find(t => t.id === tierId);
+  if (!tier) return;
+  currentSubscription = tierId;
+  const tierBadge = document.getElementById('creatorTierBadge');
+  if (tierBadge) tierBadge.textContent = `${tier.name} Tier`;
+  // Grant coins on upgrade
+  if (tierId === 'pro')     STATE.wallet.coins += 500;
+  if (tierId === 'creator') STATE.wallet.coins += 2000;
+  updateCoinDisplay();
+  document.getElementById('subModalBg').style.display = 'none';
+  toast(`🌟 Welcome to ${tier.name}! Your perks are now active.`, 'ok');
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   §29  LO-FI QUICK CREATE
+   ---------------------------------------------------------------
+   Pre-built templates for fast, authentic sharing.
+   ═══════════════════════════════════════════════════════════════════ */
+
+const QUICK_TEMPLATES = [
+  { emoji: '📦', label: 'Just Prepped', text: 'Sunday prep done! Here\'s what I made this week 💪' },
+  { emoji: '💪', label: 'Protein Check', text: 'Hitting my protein goals today — here\'s the stack 🍗' },
+  { emoji: '🌱', label: 'Plant Power', text: 'Going full plant-based this week. Here\'s my haul 🥗' },
+  { emoji: '⏱️', label: 'Quick Meal', text: 'Under 15 minutes and still hitting macros — here\'s how 🔥' },
+  { emoji: '💰', label: 'Budget Prep', text: 'This week\'s prep cost me under $40. Here\'s the breakdown 👇' },
+  { emoji: '📊', label: 'Macro Flex', text: 'Weekly macros on point! Protein / Carbs / Fat breakdown below 📈' },
+];
+
+function renderQuickCreateStrip() {
+  const strip = document.getElementById('quickCreateStrip');
+  if (!strip) return;
+  strip.innerHTML = QUICK_TEMPLATES.map((t, i) => `
+    <div class="qc-template" onclick="useQuickTemplate(${i})">
+      <span class="qc-emoji">${t.emoji}</span>
+      <span class="qc-label">${t.label}</span>
+    </div>
+  `).join('');
+}
+
+window.useQuickTemplate = function(idx) {
+  const tmpl = QUICK_TEMPLATES[idx];
+  if (!tmpl) return;
+  const input = document.getElementById('composerInput');
+  if (input) {
+    input.value = tmpl.text;
+    input.focus();
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   §30  MULTI-FORMAT: LIVE STREAMS
+   ═══════════════════════════════════════════════════════════════════ */
+
+const LIVE_STREAMS = [
+  { id: 'live-1', user_id: 'u6', title: 'Meal prep with me — 3 hours of batch cooking', gradient: 'linear-gradient(135deg,#1a3a20,#3a7a4a)', emoji: '🥦', viewers: 234 },
+  { id: 'live-2', user_id: 'u3', title: 'Q&A: How I hit 200g protein every day', gradient: 'linear-gradient(135deg,#3a0a0a,#8a2020)', emoji: '💪', viewers: 891 },
+];
+
+function renderLiveNowStrip() {
+  const strip = document.getElementById('liveNowStrip');
+  if (!strip || !LIVE_STREAMS.length) return;
+  strip.innerHTML = `<div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--terra);display:flex;align-items:center;gap:.4rem;flex-shrink:0">
+    <span class="live-dot" style="background:var(--terra)"></span> Live Now
+  </div>` + LIVE_STREAMS.map(s => {
+    const u = MOCK_USERS.find(x => x.id === s.user_id) || {};
+    return `
+      <div class="live-card" onclick="toast('Joining live stream… (requires Creator tier)', 'error')">
+        <div class="live-preview" style="background:${s.gradient}">${s.emoji}</div>
+        <div class="live-badge"><span class="live-dot"></span>LIVE</div>
+        <div class="live-info">
+          <div class="live-streamer">@${u.username}</div>
+          <div class="live-viewers">👁 ${s.viewers.toLocaleString()}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   §31  UPDATED FEED RENDERER (with ads + micro-behavior hooks)
+   ---------------------------------------------------------------
+   Replaces the basic renderFeed from §14 with the full version.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/** Render the feed, injecting ads and applying mode/filter. */
+function renderFeed(filter = STATE.feed_filter, mode = STATE.feed_mode || 'foryou') {
+  STATE.feed_filter = filter;
+  STATE.feed_mode   = mode;
+
+  let posts = applyFeedMode([...STATE.posts], mode);
+  if (filter !== 'all') posts = posts.filter(p => p.type === filter);
+  const withAds = injectNativeAds(posts);
+  renderFeedCards(withAds, filter);
+}
+
+function renderFeedCards(posts, filter) {
+  const feed = document.getElementById('socialFeed');
+  if (!feed) return;
+
+  if (!posts.length) {
+    feed.innerHTML = '<div class="empty-state"><div class="empty-icon">🌱</div><p>No posts yet. Be the first!</p></div>';
+    return;
+  }
+
+  feed.innerHTML = posts.map(p => p.is_ad ? buildAdCard(p) : buildPostCard(p)).join('');
+
+  // Start micro-behavior observation
+  setTimeout(observeFeedPosts, 100);
+}
+
+/** Extended post card with gift, share-to-DM, why-shown, and score display. */
+function buildPostCard(post) {
+  const user = MOCK_USERS.find(u => u.id === post.user_id) || { username: 'unknown', avatar_initial: '?', avatar_color: '#888' };
+  const badgeMap = { post: 'badge-post', recipe: 'badge-recipe', promote: 'badge-promote' };
+  const labelMap = { post: 'Meal Post', recipe: 'Recipe', promote: '🔖 Promoted' };
+
+  let imageHTML = '';
+  if (post.image_url) {
+    imageHTML = `<img src="${post.image_url}" alt="Food photo" class="post-image" loading="lazy" onerror="this.style.display='none'" />`;
+  } else if (post.image_gradient) {
+    imageHTML = `<div class="post-img-placeholder" style="background:${post.image_gradient}">${post.image_emoji||'🍽️'}</div>`;
+  }
+
+  let recipeHTML = '';
+  if (post.type === 'recipe') {
+    recipeHTML = `<div class="recipe-details" id="rd-${post.id}"><button class="recipe-toggle" onclick="toggleRecipe('${post.id}')">📋 View Full Recipe<span class="rtgl-icon"> ▾</span></button><div class="recipe-body"><div class="recipe-section-title">Ingredients</div><ul class="recipe-list">${(post.recipe_ingredients||[]).map(i=>`<li>${i}</li>`).join('')}</ul><div class="recipe-section-title">Method</div><ol class="recipe-list">${(post.recipe_steps||[]).map((s,n)=>`<li>${n+1}. ${s}</li>`).join('')}</ol></div></div>`;
+  }
+
+  let promoteHTML = '';
+  if (post.type === 'promote' && post.business_name) {
+    promoteHTML = `<div class="promote-biz"><div><div class="promote-biz-name">${post.business_name}</div><div class="promote-biz-desc">${post.business_desc||''}</div></div>${post.promo_code?`<div class="promo-code">${post.promo_code}</div>`:''}</div>`;
+  }
+
+  const tagsHTML = (post.tags||[]).length ? `<div class="post-tags">${post.tags.map(t=>`<span class="ptag ${post.type==='promote'?'ptag-gold':''}">${t}</span>`).join('')}</div>` : '';
+
+  const scoreHTML = ALGO_PREFS.transparencyMode
+    ? `<div class="post-relevance-score">Relevance: ${scorePost(post).toFixed(1)}</div>` : '';
+
+  const recipientName = user.username;
+
+  return `
+    <article class="post-card ${post.type}" data-post-id="${post.id}">
+      <div class="post-header">
+        <div class="post-avatar" style="background:${user.avatar_color}22;color:${user.avatar_color};border-color:${user.avatar_color}44">${user.avatar_initial}</div>
+        <div class="post-meta"><span class="post-username">@${user.username}</span><span class="post-time">${post.created_at}</span></div>
+        <span class="post-type-badge ${badgeMap[post.type]||''}">${labelMap[post.type]||post.type}</span>
+      </div>
+      ${imageHTML}
+      ${scoreHTML}
+      <div class="post-content">${post.type==='recipe'?`<strong>${post.recipe_title}</strong>`:''}${post.content}</div>
+      ${recipeHTML}${promoteHTML}${tagsHTML}
+      <div class="post-actions">
+        <button class="pa-btn ${post.is_liked?'liked':''}" onclick="toggleLike('${post.id}')">
+          <svg viewBox="0 0 24 24" fill="${post.is_liked?'currentColor':'none'}" stroke="currentColor" stroke-width="1.8"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+          <span id="likes-${post.id}">${post.likes_count}</span>
+        </button>
+        <button class="pa-btn" onclick="openComments('${post.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          <span>${post.comments_count}</span>
+        </button>
+        <button class="pa-btn" onclick="openGiftModal('${post.user_id}','${recipientName}')" title="Send gift">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="8" width="18" height="14" rx="2"/><line x1="12" y1="8" x2="12" y2="22"/><path d="M12 8H7.5a2.5 2.5 0 010-5C11 3 12 8 12 8z"/><path d="M12 8h4.5a2.5 2.5 0 000-5C13 3 12 8 12 8z"/></svg>
+          Gift
+        </button>
+        <button class="pa-btn" onclick="sharePostToDM('${post.id}')" title="Share to DM">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Send
+        </button>
+        <div class="pa-spacer"></div>
+        <button class="pa-btn ${post.is_saved?'saved':''}" onclick="toggleSave('${post.id}')">
+          <svg viewBox="0 0 24 24" fill="${post.is_saved?'currentColor':'none'}" stroke="currentColor" stroke-width="1.8"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+          ${post.is_saved?'Saved':'Save'}
+        </button>
+        <div class="pa-more-menu">
+          <button class="pa-btn" onclick="toggleMoreMenu('${post.id}')">⋯</button>
+          <div class="pa-more-dropdown" id="more-${post.id}">
+            <div class="pa-dropdown-item" onclick="showWhyShown('${post.id}');closeMoreMenus()">ℹ️ Why am I seeing this?</div>
+            <div class="pa-dropdown-item" onclick="notInterested('${post.id}')">👎 Not interested</div>
+            <div class="pa-dropdown-item" onclick="moreLikeThis('${post.id}')">👍 More like this</div>
+          </div>
+        </div>
+      </div>
+    </article>
+  `;
+}
+
+window.toggleMoreMenu = function(postId) {
+  const menu = document.getElementById(`more-${postId}`);
+  if (!menu) return;
+  const wasOpen = menu.classList.contains('open');
+  closeMoreMenus();
+  if (!wasOpen) menu.classList.add('open');
+};
+
+window.closeMoreMenus = function() {
+  document.querySelectorAll('.pa-more-dropdown.open').forEach(m => m.classList.remove('open'));
+};
+
+window.notInterested = function(postId) {
+  const post = STATE.posts.find(p => p.id === postId);
+  if (post) {
+    AFFINITY.categories[post.type] = Math.max(0, (AFFINITY.categories[post.type]||0) - 2);
+    (post.tags||[]).forEach(t => { AFFINITY.tags[t] = Math.max(0, (AFFINITY.tags[t]||0) - 1.5); });
+  }
+  closeMoreMenus();
+  reScoreFeed();
+  toast('👎 Noted — less like this.');
+};
+
+window.moreLikeThis = function(postId) {
+  const post = STATE.posts.find(p => p.id === postId);
+  if (post) {
+    AFFINITY.categories[post.type] = (AFFINITY.categories[post.type]||0) + 2.5;
+    (post.tags||[]).forEach(t => { AFFINITY.tags[t] = (AFFINITY.tags[t]||0) + 2; });
+  }
+  closeMoreMenus();
+  reScoreFeed();
+  toast('👍 Showing more like this!');
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   §32  NEW VIEW INITIALIZERS
+   ═══════════════════════════════════════════════════════════════════ */
+
+function initMessagesView() {
+  renderConvList();
+
+  document.getElementById('convSearch')?.addEventListener('input', e => {
+    renderConvList(e.target.value);
+  });
+
+  document.getElementById('newConvBtn')?.addEventListener('click', () => {
+    toast('Start a new conversation by going to a creator\'s post and tapping Send.');
+  });
+}
+
+function initShopView() {
+  const catRow = document.getElementById('shopCatRow');
+  const categories = ['all', 'containers', 'tools', 'supplements', 'pantry', 'meal-kits'];
+  if (catRow) {
+    catRow.innerHTML = categories.map(c => `
+      <button class="shop-cat-btn ${c === 'all' ? 'active' : ''}" data-cat="${c}" onclick="filterShop('${c}')">
+        ${c === 'all' ? 'All' : c.charAt(0).toUpperCase() + c.slice(1)}
+      </button>
+    `).join('');
+  }
+  renderProducts('all');
+  renderCart();
+
+  document.getElementById('cartClearBtn')?.addEventListener('click', () => {
+    Object.keys(CART.items).forEach(k => delete CART.items[k]);
+    renderCart();
+    renderProducts(shopFilter);
+    const badge = document.getElementById('cartNavBadge');
+    if (badge) badge.style.display = 'none';
+    toast('Cart cleared.');
+  });
+
+  document.getElementById('checkoutBtn')?.addEventListener('click', () => {
+    toast('✓ Order placed! (Payment processing simulated)', 'ok');
+    Object.keys(CART.items).forEach(k => delete CART.items[k]);
+    renderCart();
+    renderProducts(shopFilter);
+    STATE.wallet.coins += 50; // earn coins on purchase
+    updateCoinDisplay();
+    toast('🪙 You earned 50 coins on your purchase!', 'ok');
+  });
+
+  document.getElementById('productModalBg')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
+  });
+}
+
+window.filterShop = function(cat) {
+  document.querySelectorAll('.shop-cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
+  renderProducts(cat);
+};
+
+function initAlgoControls() {
+  document.getElementById('algoCtrlBtn')?.addEventListener('click', openAlgoPanel);
+  document.getElementById('algoPanelClose')?.addEventListener('click', closeAlgoPanel);
+  document.getElementById('algoPanelBackdrop')?.addEventListener('click', closeAlgoPanel);
+  document.getElementById('muteAddBtn')?.addEventListener('click', addMutedKeyword);
+  document.getElementById('muteInput')?.addEventListener('keydown', e => { if (e.key === 'Enter') addMutedKeyword(); });
+  document.getElementById('feedResetBtn')?.addEventListener('click', resetFeed);
+
+  document.getElementById('algoTransparencyToggle')?.addEventListener('change', e => {
+    ALGO_PREFS.transparencyMode = e.target.checked;
+    const tog = document.getElementById('algoScoreToggle');
+    if (tog) tog.style.display = e.target.checked ? 'block' : 'none';
+    renderFeed(STATE.feed_filter, STATE.feed_mode);
+  });
+
+  document.getElementById('nativeAdToggle')?.addEventListener('change', e => {
+    ALGO_PREFS.showAds = e.target.checked;
+    renderFeed(STATE.feed_filter, STATE.feed_mode);
+  });
+
+  // Feed mode tabs
+  document.querySelectorAll('.fmode-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.fmode-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      STATE.feed_mode = t.dataset.mode;
+      renderFeed(STATE.feed_filter, STATE.feed_mode);
+    });
+  });
+
+  // Why / gift / DM share modal close events
+  document.getElementById('whyModalClose')?.addEventListener('click', () => { document.getElementById('whyModalBg').style.display = 'none'; });
+  document.getElementById('whyModalBg')?.addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.style.display = 'none'; });
+  document.getElementById('giftModalClose')?.addEventListener('click', () => closeGiftModal());
+  document.getElementById('subModalClose')?.addEventListener('click', () => { document.getElementById('subModalBg').style.display = 'none'; });
+  document.getElementById('subModalBg')?.addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.style.display = 'none'; });
+  document.getElementById('dmShareClose')?.addEventListener('click', () => { document.getElementById('dmShareBg').style.display = 'none'; });
+  document.getElementById('dmShareBg')?.addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.style.display = 'none'; });
+
+  // Close more menus on outside click
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.pa-more-menu')) closeMoreMenus();
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   §33  PATCHED BOOT (adds all new modules)
+   ═══════════════════════════════════════════════════════════════════ */
+
+// Patch the existing switchView to include new views
+const _origSwitchView = switchView;
+window.switchView = function(id) {
+  _origSwitchView(id);
+  if (id === 'messages')  { renderConvList(); }
+  if (id === 'creator')   { renderCreatorDashboard(); }
+  if (id === 'shop')      { renderProducts(shopFilter); renderCart(); }
+  if (id === 'community') { renderQuickCreateStrip(); renderLiveNowStrip(); renderSidebarWidgets(); }
+};
+
+// Patch the existing boot to add new inits
+const _origBoot = boot;
+async function boot() {
+  // Run original boot (theme, restoreState, initOnboarding, initComposer, initGlobalEvents)
+  await _origBoot();
+
+  // Initialize new modules
+  initMessagesView();
+  initShopView();
+  initAlgoControls();
+  renderQuickCreateStrip();
+  renderLiveNowStrip();
+
+  // Add Live tab to composer
+  document.getElementById('liveExtra')?.parentElement; // already in HTML
+
+  console.log('%c🚀 MISE — Engagement Engine Active', 'color:#d4a853;font-weight:bold;font-size:1.1em');
+}
+
+document.addEventListener('DOMContentLoaded', boot);
