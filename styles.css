@@ -1761,23 +1761,46 @@ select {
 }
 
 @media (max-width: 860px) {
-  .sidebar { display: none; }
+  /* ── Root layout fix ────────────────────────────────────────────
+     Switch body from flex to block so the hidden sidebar's 220px
+     flex-slot can never push content rightward on mobile browsers. */
+  html, body {
+    overflow-x: hidden;
+  }
+  body {
+    display: block;   /* abandon flex; sidebar is gone anyway */
+  }
+
+  .sidebar { display: none !important; width: 0; }
+
+  .main-content {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    max-width: 100vw;
+    padding-bottom: var(--nav-h-mobile);
+  }
+
   .mobile-header { display: flex; }
-  .mobile-nav { display: flex; }
-  .main-content { padding-bottom: var(--nav-h-mobile); }
+  .mobile-nav    { display: flex; }
 
   .view { padding: 1.5rem 1.1rem 5rem; }
   .page-hero { padding: 1.5rem 0 2rem; }
   .page-hero::before { display: none; }
 
-  .setup-grid { grid-template-columns: 1fr; gap: 1rem; }
+  /* Setup grid: single column, card min-width clamped to 100% */
+  .setup-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .setup-card { min-width: 0; }
   .setup-card-wide { grid-column: auto; }
   .form-row-2 { grid-template-columns: 1fr; }
-  .goal-grid { grid-template-columns: 1fr; }
+  .goal-grid  { grid-template-columns: 1fr; }
   .goal-tile-inner { flex-direction: row; justify-content: flex-start; gap: .75rem; text-align: left; }
 
   .macro-ribbon { overflow-x: auto; }
-  .mrib-item { min-width: 100px; }
+  .mrib-item { min-width: 90px; }
 
   .food-lib-grid { grid-template-columns: 1fr; }
 
@@ -2023,7 +2046,7 @@ select {
 .dm-share-conv:hover { background: var(--bg-3); border-color: var(--border-mid); }
 
 /* ── MESSAGES VIEW ──────────────────────────────────────────────── */
-.messages-layout { display: grid; grid-template-columns: 300px 1fr; height: calc(100vh - var(--header-h-mobile, 0px) - 5rem); min-height: 500px; }
+.messages-layout { display: grid; grid-template-columns: clamp(240px, 32%, 300px) 1fr; height: calc(100vh - var(--header-h-mobile, 0px) - 5rem); min-height: 500px; }
 .conv-list-panel { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg) 0 0 var(--r-lg); display: flex; flex-direction: column; overflow: hidden; }
 .conv-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.1rem; border-bottom: 1px solid var(--border); }
 .conv-panel-title { font-family: var(--font-display); font-size: 1.1rem; }
@@ -2182,12 +2205,22 @@ select {
   .cart-panel { position: static; }
 }
 @media (max-width: 860px) {
-  .messages-layout { grid-template-columns: 1fr; height: auto; }
-  .thread-panel { display: none; min-height: 500px; }
+  /* Messages: show only conv list; thread opens full-width overlay */
+  .messages-layout { display: block; height: auto; }
+  .conv-list-panel { border-radius: var(--r-lg); margin-bottom: 1rem; }
+  .thread-panel { display: none; min-height: 420px; border-radius: var(--r-lg); border-left: 1px solid var(--border); }
   .thread-panel.mobile-open { display: flex; }
-  .algo-panel { width: 100%; }
+
+  .algo-panel { width: min(100vw, 380px); }
   .gift-options { grid-template-columns: repeat(2, 1fr); }
+  .sub-tiers { grid-template-columns: 1fr; }
+  .creator-main-grid { grid-template-columns: 1fr; }
+  .creator-two-col { grid-template-columns: 1fr; }
+  .creator-stats-row { grid-template-columns: 1fr 1fr; }
   .audience-grid { grid-template-columns: 1fr; }
+  .b2b-grid { grid-template-columns: 1fr 1fr; }
+  .shop-layout { display: block; }
+  .cart-panel { position: static; margin-top: 1rem; }
 }
 @media (max-width: 600px) {
   .sub-tiers { grid-template-columns: 1fr; }
