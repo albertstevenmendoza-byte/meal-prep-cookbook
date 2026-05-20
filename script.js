@@ -520,7 +520,10 @@ const STATE = {
    §8  DB LAYER (async shim → swap for Supabase client)
    ═══════════════════════════════════════════════════════════════════ */
 
-const db = {
+// If supabase-db.js loaded successfully it set window._supabaseDb.
+// Use that (full Supabase layer). Otherwise fall back to localStorage
+// so the app still works offline / in dev without credentials.
+const _localDb = {
   async saveProfile(p)  { localStorage.setItem('comemos_profile', JSON.stringify(p)); return { data:p }; },
   async loadProfile()   { const r = localStorage.getItem('comemos_profile'); return { data: r ? JSON.parse(r) : null }; },
   async savePlan(plan)  { localStorage.setItem('comemos_plan', JSON.stringify(plan)); return { data:plan }; },
@@ -529,7 +532,22 @@ const db = {
   async loadChecked()   { const r = localStorage.getItem('comemos_checked'); return r ? JSON.parse(r) : {}; },
   async savePosts(ps)   { localStorage.setItem('comemos_posts', JSON.stringify(ps)); return { data:ps }; },
   async loadPosts()     { const r = localStorage.getItem('comemos_posts'); return r ? JSON.parse(r) : null; },
+  // stubs so call-sites don't throw when offline
+  async createPost(p)                { return { data: p, error: null }; },
+  async toggleLike()                 { return {}; },
+  async toggleSave()                 { return {}; },
+  async addComment(pid, text)        { return { data: { id: `c-${Date.now()}`, content: text }, error: null }; },
+  async loadComments()               { return []; },
+  async loadUserReactions()          { return { likes:[], saves:[] }; },
+  async updateWallet()               { return {}; },
+  async loadWallet()                 { return null; },
+  async saveSubscription()           { return {}; },
+  async saveAlgoPrefs()              { return {}; },
+  async updateProfileFields(fields)  { return { error: null }; },
+  async changePassword()             { return { error: null }; },
+  async uploadAvatar()               { return { url: null, error: 'Offline mode' }; },
 };
+const db = window._supabaseDb || _localDb;
 
 const delay = (ms = 0) => new Promise(r => setTimeout(r, ms));
 
@@ -1187,8 +1205,11 @@ function renderFeed(filter = STATE.feed_filter) {
 function toggleLike(postId) {
   const post = STATE.posts.find(p => p.id === postId);
   if (!post) return;
-  post.is_liked = !post.is_liked;
+  post.is_liked    = !post.is_liked;
   post.likes_count += post.is_liked ? 1 : -1;
+
+  // Persist to Supabase (fire-and-forget — DB trigger keeps count accurate)
+  db.toggleLike(postId, post.is_liked).catch(e => console.warn('like sync:', e));
 
   // Update DOM without full re-render
   const card = document.querySelector(`[data-post-id="${postId}"]`);
@@ -1196,7 +1217,8 @@ function toggleLike(postId) {
     const btn = card.querySelector('.pa-btn');
     btn.classList.toggle('liked', post.is_liked);
     btn.querySelector('svg').setAttribute('fill', post.is_liked ? 'currentColor' : 'none');
-    document.getElementById(`likes-${postId}`).textContent = post.likes_count;
+    const likesEl = document.getElementById(`likes-${postId}`);
+    if (likesEl) likesEl.textContent = post.likes_count;
   }
 }
 window.toggleLike = toggleLike;
@@ -1205,13 +1227,18 @@ function toggleSave(postId) {
   const post = STATE.posts.find(p => p.id === postId);
   if (!post) return;
   post.is_saved = !post.is_saved;
+
+  // Persist to Supabase
+  db.toggleSave(postId, post.is_saved).catch(e => console.warn('save sync:', e));
+
   const card = document.querySelector(`[data-post-id="${postId}"]`);
   if (card) {
-    const btn = card.querySelectorAll('.pa-btn');
-    const saveBtn = btn[btn.length - 1];
+    const btns    = card.querySelectorAll('.pa-btn');
+    const saveBtn = btns[btns.length - 1];
     saveBtn.classList.toggle('saved', post.is_saved);
     saveBtn.querySelector('svg').setAttribute('fill', post.is_saved ? 'currentColor' : 'none');
-    saveBtn.childNodes[saveBtn.childNodes.length - 1].textContent = post.is_saved ? 'Saved' : 'Save';
+    const lastNode = saveBtn.lastChild;
+    if (lastNode) lastNode.textContent = post.is_saved ? 'Saved' : 'Save';
   }
   toast(post.is_saved ? '🔖 Saved to collection' : 'Removed from saved');
 }
@@ -1225,15 +1252,34 @@ window.toggleRecipe = toggleRecipe;
 
 /* ─── Comments Drawer ────────────────────────────────────────────── */
 
-function openComments(postId) {
-  const post  = STATE.posts.find(p => p.id === postId);
+async function openComments(postId) {
+  const post = STATE.posts.find(p => p.id === postId);
   if (!post) return;
   STATE.active_post_id = postId;
 
+  document.getElementById('drawerBg').style.display = 'flex';
+  document.getElementById('drawerTitle').textContent = 'Comments…';
+
+  // Load fresh comments from Supabase
+  try {
+    const liveComments = await db.loadComments(postId);
+    if (liveComments && liveComments.length) {
+      post.comments = liveComments.map(c => ({
+        id:         c.id,
+        user_id:    c.user_id,
+        text:       c.content,
+        created_at: new Date(c.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+        // Inline author name from the join
+        _name:      c.profiles?.name || 'Someone',
+        _initial:   (c.profiles?.name || '?')[0].toUpperCase(),
+        _avatar:    c.profiles?.avatar_url || null,
+      }));
+      post.comments_count = post.comments.length;
+    }
+  } catch(e) { console.warn('loadComments:', e); }
+
   document.getElementById('drawerTitle').textContent = `Comments (${post.comments.length})`;
   renderComments(post);
-
-  document.getElementById('drawerBg').style.display = 'flex';
 }
 window.openComments = openComments;
 
@@ -1257,54 +1303,42 @@ function renderComments(post) {
   }).join('');
 }
 
-function submitComment() {
+async function submitComment() {
   const input = document.getElementById('drawerInput');
-  const text  = input.value.trim();
+  const text  = input?.value.trim();
   if (!text) return;
 
-  const post = STATE.posts.find(p => p.id === STATE.active_post_id);
+  const post     = STATE.posts.find(p => p.id === STATE.active_post_id);
   if (!post) return;
-
   const userName = STATE.profile.name || 'You';
-  const newComment = {
-    id: `c-${Date.now()}`,
-    user_id: 'me',
-    text,
+
+  const tempComment = {
+    id: `c-${Date.now()}`, user_id: 'me', text,
     created_at: 'just now',
+    _name: userName, _initial: userName[0]?.toUpperCase() || 'M',
   };
 
-  // Inject a virtual user entry for rendering
-  if (!MOCK_USERS.find(u => u.id === 'me')) {
-    MOCK_USERS.push({
-      id: 'me', username: userName.toLowerCase().replace(/\s/g,'_'),
-      avatar_initial: userName[0]?.toUpperCase() || 'M',
-      avatar_color: '#d4a853', posts_count: 1,
-    });
-  }
-
-  post.comments.push(newComment);
+  // Optimistic local update
+  post.comments.push(tempComment);
   post.comments_count++;
-  input.value = '';
-
+  if (input) input.value = '';
   document.getElementById('drawerTitle').textContent = `Comments (${post.comments.length})`;
   renderComments(post);
-
-  // Scroll to bottom
   const dc = document.getElementById('drawerComments');
-  dc.scrollTop = dc.scrollHeight;
+  if (dc) dc.scrollTop = dc.scrollHeight;
 
-  // Update count in card
   const card = document.querySelector(`[data-post-id="${STATE.active_post_id}"]`);
   if (card) {
     const btns = card.querySelectorAll('.pa-btn');
-    if (btns[1]) {
-      const span = btns[1].querySelector('span');
-      if (span) span.textContent = post.comments_count;
-    }
+    if (btns[1]) { const sp = btns[1].querySelector('span'); if (sp) sp.textContent = post.comments_count; }
   }
-}
 
-/* ─── Composer / New Post ─────────────────────────────────────────── */
+  // Persist to Supabase (replace temp ID with server UUID on success)
+  try {
+    const { data, error } = await db.addComment(STATE.active_post_id, text);
+    if (!error && data?.id) tempComment.id = data.id;
+  } catch(e) { console.warn('addComment offline:', e); }
+}
 
 function initComposer() {
   // Type selector
@@ -1334,7 +1368,7 @@ function initComposer() {
   document.getElementById('composerSubmit').addEventListener('click', publishPost);
 }
 
-function publishPost() {
+async function publishPost() {
   const content = document.getElementById('composerInput').value.trim();
   if (!content) { toast('Write something first!', 'error'); return; }
 
@@ -1381,7 +1415,18 @@ function publishPost() {
     });
   }
 
-  // Prepend to feed
+  // Persist to Supabase and get the real server-assigned UUID
+  try {
+    const { data, error } = await db.createPost(newPost);
+    if (error) { toast('Could not publish. Please try again.', 'error'); return; }
+    if (data?.id) newPost.id = data.id;  // swap temp ID for real DB UUID
+    if (data?.created_at) newPost.created_at = new Date(data.created_at)
+      .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch (e) {
+    console.warn('Post save error (offline?):', e);
+  }
+
+  // Prepend to local feed
   STATE.posts.unshift(newPost);
 
   // Clear composer
@@ -1575,9 +1620,30 @@ async function restoreState() {
 
   if (profile) {
     Object.assign(STATE.profile, profile);
-    STATE.preferred_foods = profile.preferred_foods || [];
-    STATE.custom_foods    = profile.custom_foods    || [];
+    // Supabase column names map directly; ensure arrays are initialised
+    STATE.preferred_foods       = profile.preferred_foods || [];
+    STATE.custom_foods          = profile.custom_foods    || [];
+    STATE.profile.username      = profile.username        || '';
+    STATE.profile.avatar_url    = profile.avatar_url      || null;
     updateSidebarProfile();
+
+    // Pre-fill onboarding form fields so returning users see their data
+    const fields = {
+      userName:    profile.name,
+      userAge:     profile.age,
+      userWeight:  profile.weight_kg,
+      userHeight:  profile.height_cm,
+    };
+    Object.entries(fields).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if (el && val != null) el.value = val;
+    });
+    if (profile.sex)      { const el = document.getElementById('userSex');      if (el) el.value = profile.sex; }
+    if (profile.activity) { const el = document.getElementById('userActivity'); if (el) el.value = profile.activity; }
+    if (profile.goal) {
+      const radio = document.querySelector(`input[name="goal"][value="${profile.goal}"]`);
+      if (radio) radio.checked = true;
+    }
   }
 
   if (plan) {
@@ -1721,6 +1787,10 @@ function recordMicroBehavior(postId, viewMs) {
   if (earnedCoins > 0) {
     STATE.wallet.coins += earnedCoins;
     updateCoinDisplay();
+    // Batch-sync wallet every 5 coins earned to avoid excessive writes
+    if (STATE.wallet.coins % 5 === 0) {
+      db.updateWallet(STATE.wallet.coins).catch(() => {});
+    }
   }
 
   if (viewMs < 2000) return; // not a meaningful pause
@@ -2091,6 +2161,8 @@ function sendGift(giftId) {
   document.getElementById('giftCoinBalance').textContent = STATE.wallet.coins;
   document.getElementById('giftModalBg').style.display = 'none';
   toast(`${gift.emoji} ${gift.msg} (${gift.cost} coins)`, 'ok');
+  // Persist updated coin balance
+  db.updateWallet(STATE.wallet.coins).catch(e => console.warn('wallet sync:', e));
 }
 window.sendGift = sendGift;
 
@@ -2481,6 +2553,7 @@ function resetFeed() {
   const notice = document.getElementById('feedRefreshNotice');
   if (notice) notice.style.display = 'none';
   toast('🔄 Feed reset! Starting fresh.');
+  db.saveAlgoPrefs(ALGO_PREFS).catch(e => console.warn('algo sync:', e));
 }
 
 // "Why am I seeing this?" modal
@@ -2595,6 +2668,9 @@ window.subscribeTier = function(tierId) {
   updateCoinDisplay();
   document.getElementById('subModalBg').style.display = 'none';
   toast(`🌟 Welcome to ${tier.name}! Your perks are now active.`, 'ok');
+  // Persist subscription and new coin balance
+  db.saveSubscription(tierId).catch(e => console.warn('sub sync:', e));
+  db.updateWallet(STATE.wallet.coins).catch(e => console.warn('wallet sync:', e));
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -3142,14 +3218,31 @@ async function comemos_boot(sbUser) {
     console.warn('Could not load live posts, using mock data:', e);
   }
 
-  // Load wallet coins from Supabase
+  // Load wallet, subscription tier, and algo prefs in parallel
   try {
-    const wallet = await db.loadWallet();
-    if (wallet) {
-      STATE.wallet.coins = wallet.coins;
+    const [wallet, sub, prefs] = await Promise.allSettled([
+      db.loadWallet(),
+      db.loadSubscription(),
+      db.loadAlgoPrefs?.() ?? Promise.resolve(null),
+    ]);
+
+    if (wallet.status === 'fulfilled' && wallet.value) {
+      STATE.wallet.coins = wallet.value.coins || 150;
       updateCoinDisplay();
     }
-  } catch(e) {}
+    if (sub.status === 'fulfilled' && sub.value?.tier && sub.value.tier !== 'free') {
+      currentSubscription = sub.value.tier;
+      const badge = document.getElementById('creatorTierBadge');
+      if (badge) badge.textContent = sub.value.tier.charAt(0).toUpperCase() + sub.value.tier.slice(1) + ' Tier';
+    }
+    if (prefs.status === 'fulfilled' && prefs.value) {
+      const p = prefs.value;
+      ALGO_PREFS.mutedKeywords    = p.muted_keywords   || [];
+      ALGO_PREFS.preferredTypes   = p.preferred_types  || [];
+      ALGO_PREFS.showAds          = p.show_ads          ?? true;
+      ALGO_PREFS.transparencyMode = p.transparency_mode ?? false;
+    }
+  } catch(e) { console.warn('boot prefs load:', e); }
 
   // Store auth email for account view
   if (sbUser?.email) STATE._authEmail = sbUser.email;
