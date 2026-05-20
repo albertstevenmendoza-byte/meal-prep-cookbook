@@ -491,8 +491,8 @@ const AuthUI = {
   show(mode = 'signin') {
     const modal = document.getElementById('authModal');
     if (!modal) return;
-    this.switchMode(mode);
     modal.style.display = 'flex';
+    this.switchMode(mode);
   },
 
   hide() {
@@ -501,27 +501,17 @@ const AuthUI = {
   },
 
   switchMode(mode) {
-    const signInForm  = document.getElementById('authSignIn');
-    const signUpForm  = document.getElementById('authSignUp');
-    const switchToUp  = document.getElementById('switchToSignUp');
-    const switchToIn  = document.getElementById('switchToSignIn');
-    const modalTitle  = document.getElementById('authModalTitle');
-
+    const signInForm = document.getElementById('authSignIn');
+    const signUpForm = document.getElementById('authSignUp');
+    const tabIn      = document.getElementById('tabSignIn');
+    const tabUp      = document.getElementById('tabSignUp');
     if (!signInForm) return;
 
-    if (mode === 'signin') {
-      signInForm.style.display  = 'flex';
-      signUpForm.style.display  = 'none';
-      switchToUp.style.display  = 'block';
-      switchToIn.style.display  = 'none';
-      modalTitle.textContent    = 'Welcome back';
-    } else {
-      signInForm.style.display  = 'none';
-      signUpForm.style.display  = 'flex';
-      switchToUp.style.display  = 'none';
-      switchToIn.style.display  = 'block';
-      modalTitle.textContent    = 'Create your account';
-    }
+    const isSignIn = mode === 'signin';
+    signInForm.style.display = isSignIn ? 'flex' : 'none';
+    signUpForm.style.display = isSignIn ? 'none' : 'flex';
+    tabIn?.classList.toggle('active',  isSignIn);
+    tabUp?.classList.toggle('active', !isSignIn);
     this.clearErrors();
   },
 
@@ -531,106 +521,156 @@ const AuthUI = {
   },
 
   clearErrors() {
-    const el = document.getElementById('authError');
-    if (el) { el.textContent = ''; el.style.display = 'none'; }
+    ['authError','authConfirmMsg'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
   },
 
   setLoading(btn, isLoading) {
-    btn.disabled     = isLoading;
-    btn.textContent  = isLoading ? 'Please wait…' : btn.dataset.label;
+    if (!btn) return;
+    btn.disabled = isLoading;
+    if (isLoading) {
+      btn.dataset.originalHtml = btn.innerHTML;
+      btn.innerHTML = '<svg style="animation:spin .8s linear infinite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18"><circle cx="12" cy="12" r="10" stroke-dasharray="32" stroke-dashoffset="10"/></svg> Please wait…';
+    } else if (btn.dataset.originalHtml) {
+      btn.innerHTML = btn.dataset.originalHtml;
+    }
+  },
+
+  // Password strength scorer (0–4)
+  scorePassword(pw) {
+    if (!pw) return 0;
+    let score = 0;
+    if (pw.length >= 8)  score++;
+    if (pw.length >= 12) score++;
+    if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    return Math.min(4, score);
+  },
+
+  updateStrength(pw) {
+    const meter = document.getElementById('pwStrength');
+    const label = document.getElementById('pwsLabel');
+    if (!meter || !label) return;
+    meter.style.display = pw.length > 0 ? 'flex' : 'none';
+    if (!pw.length) return;
+
+    const score  = this.scorePassword(pw);
+    const levels = ['','weak','fair','good','strong'];
+    const labels = ['','Weak','Fair','Good','Strong'];
+    const bars   = ['pws1','pws2','pws3','pws4'];
+
+    bars.forEach((id, i) => {
+      const bar = document.getElementById(id);
+      if (!bar) return;
+      bar.className = 'pws-bar ' + (i < score ? levels[score] : '');
+    });
+    label.textContent = labels[score] || '';
+    label.style.color = score <= 1
+      ? 'var(--terra)' : score === 2
+      ? '#e8a040'      : score === 3
+      ? '#a0c040'      : 'var(--sage)';
   },
 
   async handleSignIn(e) {
     e.preventDefault();
     AuthUI.clearErrors();
-    const email    = document.getElementById('siEmail').value.trim();
-    const password = document.getElementById('siPassword').value;
+    const email    = document.getElementById('siEmail')?.value.trim();
+    const password = document.getElementById('siPassword')?.value;
     const btn      = document.getElementById('siSubmit');
-
-    if (!email || !password) {
-      AuthUI.setError('Please fill in all fields.');
-      return;
-    }
+    if (!email || !password) { AuthUI.setError('Please fill in all fields.'); return; }
 
     AuthUI.setLoading(btn, true);
     const { error } = await auth.signIn(email, password);
     AuthUI.setLoading(btn, false);
 
-    if (error) {
-      AuthUI.setError(error.message || 'Sign in failed. Check your credentials.');
-    }
-    // On success, onAuthChange fires and calls AuthUI.hide() + app boot
+    if (error) AuthUI.setError(error.message || 'Sign-in failed. Check your credentials.');
   },
 
   async handleSignUp(e) {
     e.preventDefault();
     AuthUI.clearErrors();
-    const name     = document.getElementById('suName').value.trim();
-    const email    = document.getElementById('suEmail').value.trim();
-    const password = document.getElementById('suPassword').value;
+    const name     = document.getElementById('suName')?.value.trim();
+    const email    = document.getElementById('suEmail')?.value.trim();
+    const password = document.getElementById('suPassword')?.value;
+    const username = document.getElementById('suUsername')?.value.trim().toLowerCase() || '';
     const btn      = document.getElementById('suSubmit');
 
-    if (!name || !email || !password) {
-      AuthUI.setError('Please fill in all fields.');
-      return;
-    }
-    if (password.length < 8) {
-      AuthUI.setError('Password must be at least 8 characters.');
+    if (!name || !email || !password) { AuthUI.setError('Please fill in all fields.'); return; }
+    if (password.length < 8) { AuthUI.setError('Password must be at least 8 characters.'); return; }
+    if (username && !/^[a-z0-9_]{3,24}$/.test(username)) {
+      AuthUI.setError('Username must be 3–24 chars: lowercase letters, numbers, or underscores.');
       return;
     }
 
     AuthUI.setLoading(btn, true);
-    const username = document.getElementById('suUsername')?.value.trim().toLowerCase() || '';
     const { data: signUpData, error } = await auth.signUp(email, password, name);
     AuthUI.setLoading(btn, false);
 
     if (error) {
-      AuthUI.setError(error.message || 'Sign up failed. Try again.');
+      AuthUI.setError(error.message || 'Sign up failed. Please try again.');
     } else {
-      // Save username if provided (profile row created by trigger first)
       if (username && signUpData?.user?.id) {
         setTimeout(async () => {
-          await supabase.from('profiles').update({ username })
+          await supabase.from('profiles')
+            .update({ username })
             .eq('id', signUpData.user.id);
-        }, 1500); // small delay for trigger to run
+        }, 1500);
       }
-      AuthUI.setError('');
       const confirmMsg = document.getElementById('authConfirmMsg');
       if (confirmMsg) confirmMsg.style.display = 'block';
     }
   },
 
   init() {
-    // Wire form submissions
+    // Tab switching
+    document.getElementById('tabSignIn')
+      ?.addEventListener('click', () => this.switchMode('signin'));
+    document.getElementById('tabSignUp')
+      ?.addEventListener('click', () => this.switchMode('signup'));
+
+    // Form submissions
     document.getElementById('authSignIn')
       ?.addEventListener('submit', this.handleSignIn);
     document.getElementById('authSignUp')
       ?.addEventListener('submit', this.handleSignUp);
 
-    // Mode toggle links
-    document.getElementById('switchToSignUp')
-      ?.addEventListener('click', () => this.switchMode('signup'));
-    document.getElementById('switchToSignIn')
-      ?.addEventListener('click', () => this.switchMode('signin'));
+    // Password strength meter
+    document.getElementById('suPassword')
+      ?.addEventListener('input', e => this.updateStrength(e.target.value));
 
-    // Google OAuth button
+    // Show/hide password toggles
+    document.querySelectorAll('.auth-pw-eye').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const inp = document.getElementById(btn.dataset.target);
+        if (!inp) return;
+        const isText = inp.type === 'text';
+        inp.type = isText ? 'password' : 'text';
+        btn.style.opacity = isText ? '.5' : '1';
+        btn.setAttribute('aria-label', isText ? 'Show password' : 'Hide password');
+      });
+    });
+
+    // Google OAuth
     document.getElementById('googleSignInBtn')
       ?.addEventListener('click', () => auth.signInWithGoogle());
 
-    // Sign out button (in sidebar)
+    // Sign-out (sidebar)
     document.getElementById('signOutBtn')
       ?.addEventListener('click', () => auth.signOut());
 
-    // Auth state listener — show/hide the modal based on session
+    // Account sign-out (account view)
+    document.getElementById('acctSignOutBtn')
+      ?.addEventListener('click', () => auth.signOut());
+
+    // Auth state: show screen or boot app
     auth.onAuthChange(async (session) => {
       if (session) {
-        // User is signed in — hide auth screen, boot the app
         this.hide();
-        if (typeof comemos_boot === 'function') {
-          await comemos_boot(session.user);
-        }
+        if (typeof comemos_boot === 'function') await comemos_boot(session.user);
       } else {
-        // No session — show auth screen
         this.show('signin');
       }
     });
@@ -711,3 +751,5 @@ function enableRealtime() {
     )
     .subscribe();
 }
+
+@keyframes spin { to { transform: rotate(360deg); } }
