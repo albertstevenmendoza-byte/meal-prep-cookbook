@@ -1,361 +1,543 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Mise — Your Meal Prep Studio</title>
+  <title>Mise — Meal Prep & Community</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- ╔══════════════════════════════════════════╗ -->
-  <!-- ║             APP SHELL                   ║ -->
-  <!-- ╚══════════════════════════════════════════╝ -->
+  <!-- ┌─────────────────────────────────────────────────────────┐ -->
+  <!-- │  SIDEBAR NAVIGATION (Desktop)                           │ -->
+  <!-- └─────────────────────────────────────────────────────────┘ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-glyph">𝑚</span>
+      <span class="logo-word">mise</span>
+    </div>
 
-  <!-- TOP NAV -->
-  <header class="app-header" id="appHeader">
-    <div class="header-inner">
-      <a class="logo" href="#" onclick="return false;">
-        <span class="logo-mark">𝑚</span>
-        <span class="logo-text">mise</span>
-      </a>
-      <nav class="main-nav" id="mainNav">
-        <button class="nav-btn active" data-view="onboarding">Setup</button>
-        <button class="nav-btn" data-view="plan">Meal Plan</button>
-        <button class="nav-btn" data-view="foods">Food Library</button>
-        <button class="nav-btn" data-view="grocery">Grocery List</button>
-      </nav>
-      <div class="header-actions">
-        <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        </button>
+    <nav class="sidebar-nav">
+      <button class="snav-item active" data-view="onboarding">
+        <span class="snav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </span>
+        <span class="snav-label">Setup</span>
+      </button>
+      <button class="snav-item" data-view="plan">
+        <span class="snav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </span>
+        <span class="snav-label">Meal Plan</span>
+      </button>
+      <button class="snav-item" data-view="foods">
+        <span class="snav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        </span>
+        <span class="snav-label">Foods</span>
+      </button>
+      <button class="snav-item" data-view="grocery">
+        <span class="snav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        </span>
+        <span class="snav-label">Grocery</span>
+      </button>
+
+      <!-- Divider before Community -->
+      <div class="snav-divider"></div>
+
+      <button class="snav-item snav-community" data-view="community">
+        <span class="snav-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+        </span>
+        <span class="snav-label">Community</span>
+        <span class="snav-badge" id="communityBadge">12</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-profile">
+      <div class="sidebar-avatar" id="sidebarAvatar">?</div>
+      <div class="sidebar-user-info">
+        <span class="sidebar-username" id="sidebarUsername">Set up profile</span>
+        <span class="sidebar-goal" id="sidebarGoal">—</span>
       </div>
     </div>
-    <!-- Progress indicator (shows after onboarding complete) -->
-    <div class="plan-progress-bar" id="planProgressBar" style="display:none">
-      <div class="progress-fill" id="progressFill"></div>
+
+    <button class="sidebar-theme-toggle" id="themeToggle" title="Toggle light/dark">
+      <svg id="themeIconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+    </button>
+  </aside>
+
+  <!-- ┌─────────────────────────────────────────────────────────┐ -->
+  <!-- │  MOBILE HEADER                                          │ -->
+  <!-- └─────────────────────────────────────────────────────────┘ -->
+  <header class="mobile-header">
+    <div class="mobile-logo">
+      <span class="logo-glyph">𝑚</span>
+      <span class="logo-word">mise</span>
     </div>
+    <button class="sidebar-theme-toggle mobile-theme-btn" id="mobileThemeToggle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    </button>
   </header>
 
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <!--  VIEW 1 — ONBOARDING                                       -->
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <main class="view active" id="view-onboarding">
+  <!-- ┌─────────────────────────────────────────────────────────┐ -->
+  <!-- │  MAIN CONTENT AREA                                      │ -->
+  <!-- └─────────────────────────────────────────────────────────┘ -->
+  <main class="main-content" id="mainContent">
 
-    <section class="hero">
-      <div class="hero-eyebrow">Your Meal Prep Studio</div>
-      <h1 class="hero-title">Cook&nbsp;smart.<br/><em>Eat well.</em></h1>
-      <p class="hero-sub">Tell us your goals, choose your foods. We'll handle the rest — a full week of meals, prepped and ready.</p>
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  VIEW 1 — ONBOARDING / SETUP                           -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="view active" id="view-onboarding">
+
+      <div class="page-hero">
+        <p class="hero-eyebrow">Your Meal Prep Studio</p>
+        <h1 class="hero-title">Cook smart.<br /><em>Eat well.</em></h1>
+        <p class="hero-body">Tell us your goals and food preferences. We'll build a personalized week of meals and a ready-to-go grocery list.</p>
+      </div>
+
+      <div class="setup-grid">
+
+        <!-- Card 01: Profile -->
+        <div class="setup-card" data-step="1">
+          <div class="card-step-num">01</div>
+          <h2 class="card-heading">Your Profile</h2>
+          <p class="card-sub">Calibrate your nutrition targets.</p>
+
+          <div class="form-row-2">
+            <div class="fg">
+              <label for="userName">Name</label>
+              <input type="text" id="userName" placeholder="First name" />
+            </div>
+            <div class="fg">
+              <label for="userAge">Age</label>
+              <input type="number" id="userAge" placeholder="30" min="16" max="99" />
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="fg">
+              <label for="userWeight">Weight</label>
+              <div class="input-with-units">
+                <input type="number" id="userWeight" placeholder="175" />
+                <div class="unit-pill-group">
+                  <button class="unit-pill active" data-unit="lbs" data-group="weight">lbs</button>
+                  <button class="unit-pill" data-unit="kg" data-group="weight">kg</button>
+                </div>
+              </div>
+            </div>
+            <div class="fg">
+              <label for="userHeight">Height</label>
+              <div class="input-with-units">
+                <input type="number" id="userHeight" placeholder="70" />
+                <div class="unit-pill-group">
+                  <button class="unit-pill active" data-unit="in" data-group="height">in</button>
+                  <button class="unit-pill" data-unit="cm" data-group="height">cm</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="fg">
+              <label for="userSex">Biological Sex</label>
+              <select id="userSex">
+                <option value="">Select…</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label for="userActivity">Activity Level</label>
+              <select id="userActivity">
+                <option value="sedentary">Sedentary</option>
+                <option value="light">Lightly active</option>
+                <option value="moderate" selected>Moderately active</option>
+                <option value="very">Very active</option>
+                <option value="extra">Athlete / physical job</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 02: Goal -->
+        <div class="setup-card" data-step="2">
+          <div class="card-step-num">02</div>
+          <h2 class="card-heading">Your Goal</h2>
+          <p class="card-sub">What are you optimizing for?</p>
+
+          <div class="goal-grid">
+            <label class="goal-tile">
+              <input type="radio" name="goal" value="cut" />
+              <div class="goal-tile-inner">
+                <span class="goal-emoji">🔥</span>
+                <strong>Cut</strong>
+                <small>Caloric deficit, fat loss</small>
+              </div>
+            </label>
+            <label class="goal-tile">
+              <input type="radio" name="goal" value="maintain" checked />
+              <div class="goal-tile-inner">
+                <span class="goal-emoji">⚖️</span>
+                <strong>Maintain</strong>
+                <small>Balanced macros</small>
+              </div>
+            </label>
+            <label class="goal-tile">
+              <input type="radio" name="goal" value="build" />
+              <div class="goal-tile-inner">
+                <span class="goal-emoji">💪</span>
+                <strong>Build</strong>
+                <small>Lean muscle gain</small>
+              </div>
+            </label>
+          </div>
+
+          <div class="form-row-2" style="margin-top:1.5rem">
+            <div class="fg">
+              <label>Meals per day</label>
+              <div class="stepper">
+                <button class="step-btn" id="mealsDown">−</button>
+                <span class="step-val" id="mealsDisplay">3</span>
+                <button class="step-btn" id="mealsUp">+</button>
+                <input type="hidden" id="mealsPerDay" value="3" />
+              </div>
+            </div>
+            <div class="fg">
+              <label>Prep days / week</label>
+              <div class="stepper">
+                <button class="step-btn" id="prepDown">−</button>
+                <span class="step-val" id="prepDisplay">2</span>
+                <button class="step-btn" id="prepUp">+</button>
+                <input type="hidden" id="prepDays" value="2" />
+              </div>
+            </div>
+          </div>
+
+          <div class="fg" style="margin-top:1rem">
+            <label>Dietary preferences</label>
+            <div class="tag-cluster" id="dietTags">
+              <button class="dtag" data-tag="no-gluten">Gluten-Free</button>
+              <button class="dtag" data-tag="no-dairy">Dairy-Free</button>
+              <button class="dtag" data-tag="vegetarian">Vegetarian</button>
+              <button class="dtag" data-tag="vegan">Vegan</button>
+              <button class="dtag" data-tag="no-nuts">No Nuts</button>
+              <button class="dtag" data-tag="low-sodium">Low Sodium</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 03: Foods -->
+        <div class="setup-card setup-card-wide" data-step="3">
+          <div class="card-step-num">03</div>
+          <h2 class="card-heading">Food Preferences</h2>
+          <p class="card-sub">Select the foods you enjoy. We'll build your plan around them.</p>
+
+          <div class="food-tabs" id="foodCatTabs">
+            <button class="ftab active" data-cat="protein">Protein</button>
+            <button class="ftab" data-cat="carbs">Carbs</button>
+            <button class="ftab" data-cat="fats">Fats</button>
+            <button class="ftab" data-cat="veggies">Veggies</button>
+            <button class="ftab" data-cat="fruit">Fruit</button>
+          </div>
+
+          <div class="food-chip-grid" id="foodChipGrid">
+            <!-- JS rendered -->
+          </div>
+
+          <div class="fg" style="margin-top:1.25rem">
+            <label for="customFoodInput">Add any food not listed</label>
+            <div class="input-addon-row">
+              <input type="text" id="customFoodInput" placeholder="e.g. tempeh, edamame…" />
+              <button class="btn-ghost" id="addCustomBtn">Add</button>
+            </div>
+          </div>
+          <div class="custom-chips" id="customChips"></div>
+        </div>
+
+      </div><!-- /setup-grid -->
+
+      <div class="cta-block">
+        <button class="btn-gold btn-xl" id="generateBtn">
+          <span id="generateBtnText">Generate My Meal Plan</span>
+          <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="20" height="20"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+        <p class="cta-note">Instant. Personalized. Adjustable.</p>
+      </div>
+
     </section>
 
-    <div class="onboarding-grid">
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  VIEW 2 — MEAL PLAN                                    -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="view" id="view-plan">
 
-      <!-- STEP 1: PROFILE -->
-      <div class="card onboarding-card" data-step="1">
-        <div class="card-number">01</div>
-        <h2 class="card-title">Your Profile</h2>
-        <p class="card-desc">Basic info to calibrate your nutrition targets.</p>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="userName">Name</label>
-            <input type="text" id="userName" placeholder="First name" />
-          </div>
-          <div class="form-group">
-            <label for="userAge">Age</label>
-            <input type="number" id="userAge" placeholder="30" min="16" max="99" />
-          </div>
+      <div class="view-topbar">
+        <div>
+          <h2 class="view-heading" id="planHeading">Your Week</h2>
+          <p class="view-sub" id="planSub">—</p>
         </div>
+        <div class="topbar-actions">
+          <div class="unit-pill-group" id="globalUnitGroup">
+            <button class="unit-pill active" data-unit="g" data-group="global">g</button>
+            <button class="unit-pill" data-unit="oz" data-group="global">oz</button>
+            <button class="unit-pill" data-unit="cups" data-group="global">cups</button>
+          </div>
+          <button class="btn-outline" id="regenBtn">↺ Regenerate</button>
+        </div>
+      </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="userWeight">Weight</label>
-            <div class="input-unit-row">
-              <input type="number" id="userWeight" placeholder="175" min="50" max="500" />
-              <div class="unit-toggle-group">
-                <button class="unit-toggle active" data-unit="lbs" data-group="weight">lbs</button>
-                <button class="unit-toggle" data-unit="kg" data-group="weight">kg</button>
+      <!-- Macro ribbon -->
+      <div class="macro-ribbon" id="macroRibbon">
+        <div class="mrib-item">
+          <span class="mrib-label">Calories / day</span>
+          <span class="mrib-val" id="mCal">—</span>
+        </div>
+        <div class="mrib-sep"></div>
+        <div class="mrib-item">
+          <span class="mrib-label">Protein</span>
+          <span class="mrib-val" id="mPro">—<small>g</small></span>
+        </div>
+        <div class="mrib-item">
+          <span class="mrib-label">Carbs</span>
+          <span class="mrib-val" id="mCarb">—<small>g</small></span>
+        </div>
+        <div class="mrib-item">
+          <span class="mrib-label">Fat</span>
+          <span class="mrib-val" id="mFat">—<small>g</small></span>
+        </div>
+        <div class="mrib-sep"></div>
+        <div class="mrib-item mrib-gold">
+          <span class="mrib-label">Prep sessions</span>
+          <span class="mrib-val" id="mPrep">—</span>
+        </div>
+      </div>
+
+      <!-- Day tabs -->
+      <div class="day-strip" id="dayStrip"><!-- JS --></div>
+
+      <!-- Meals grid -->
+      <div class="meals-area" id="mealsArea"><!-- JS --></div>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  VIEW 3 — FOOD LIBRARY                                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="view" id="view-foods">
+
+      <div class="view-topbar">
+        <div>
+          <h2 class="view-heading">Food Library</h2>
+          <p class="view-sub">Browse nutrition data. Toggle units live.</p>
+        </div>
+        <div class="topbar-actions">
+          <input type="search" id="libSearch" placeholder="Search foods…" class="search-field" />
+        </div>
+      </div>
+
+      <div class="lib-filter-row">
+        <button class="lf-btn active" data-filter="all">All</button>
+        <button class="lf-btn" data-filter="protein">Protein</button>
+        <button class="lf-btn" data-filter="carbs">Carbs</button>
+        <button class="lf-btn" data-filter="fats">Fats</button>
+        <button class="lf-btn" data-filter="veggies">Veggies</button>
+        <button class="lf-btn" data-filter="fruit">Fruit</button>
+      </div>
+
+      <div class="food-lib-grid" id="foodLibGrid"><!-- JS --></div>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  VIEW 4 — GROCERY LIST                                 -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="view" id="view-grocery">
+
+      <div class="view-topbar">
+        <div>
+          <h2 class="view-heading">Grocery List</h2>
+          <p class="view-sub" id="grocerySub">Based on your current plan.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn-ghost" id="clearCheckedBtn">Clear checked</button>
+          <button class="btn-outline" id="printBtn">⎙ Print</button>
+        </div>
+      </div>
+
+      <div class="grocery-progress-row">
+        <div class="gp-track"><div class="gp-fill" id="gpFill"></div></div>
+        <span class="gp-text" id="gpText">0 / 0 items</span>
+      </div>
+
+      <div class="grocery-body" id="groceryBody">
+        <div class="empty-state">
+          <div class="empty-icon">🛒</div>
+          <p>Generate a meal plan first.</p>
+          <button class="btn-gold" onclick="switchView('onboarding')">Go to Setup</button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <!--  VIEW 5 — COMMUNITY HUB  (NEW)                        -->
+    <!-- ═══════════════════════════════════════════════════════ -->
+    <section class="view" id="view-community">
+
+      <!-- Two-column layout: feed + sidebar -->
+      <div class="community-layout">
+
+        <!-- ── LEFT: Feed ─────────────────────────────────── -->
+        <div class="community-feed-col">
+
+          <!-- Composer -->
+          <div class="composer-card" id="composerCard">
+            <div class="composer-top">
+              <div class="composer-avatar" id="composerAvatar">?</div>
+              <textarea class="composer-input" id="composerInput" rows="2"
+                placeholder="Share a meal, recipe, or tip with the community…"></textarea>
+            </div>
+
+            <!-- Composer type selector -->
+            <div class="composer-meta">
+              <div class="composer-type-group" id="composerTypes">
+                <button class="ctype-btn active" data-type="post">📸 Post</button>
+                <button class="ctype-btn" data-type="recipe">📋 Recipe</button>
+                <button class="ctype-btn" data-type="promote">📢 Promote</button>
+              </div>
+
+              <!-- Recipe extra fields (hidden by default) -->
+              <div class="composer-extra" id="recipeExtra" style="display:none">
+                <input type="text" id="recipeTitle" placeholder="Recipe name" class="composer-field" />
+                <textarea id="recipeIngredients" rows="3" placeholder="Ingredients (one per line)" class="composer-field"></textarea>
+                <textarea id="recipeSteps" rows="3" placeholder="Steps (one per line)" class="composer-field"></textarea>
+              </div>
+
+              <!-- Promote extra fields (hidden by default) -->
+              <div class="composer-extra" id="promoteExtra" style="display:none">
+                <input type="text" id="promoBusiness" placeholder="Business / service name" class="composer-field" />
+                <input type="text" id="promoCode" placeholder="Promo code (optional)" class="composer-field" />
+              </div>
+
+              <div class="composer-image-row">
+                <label class="composer-img-btn" for="composerImgInput">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  Add image URL
+                </label>
+                <input type="text" id="composerImgInput" placeholder="https://…" class="composer-field composer-img-url" />
+                <button class="btn-gold composer-submit" id="composerSubmit">Publish</button>
               </div>
             </div>
           </div>
-          <div class="form-group">
-            <label for="userHeight">Height</label>
-            <div class="input-unit-row">
-              <input type="number" id="userHeight" placeholder="70" min="48" max="96" />
-              <div class="unit-toggle-group">
-                <button class="unit-toggle active" data-unit="in" data-group="height">in</button>
-                <button class="unit-toggle" data-unit="cm" data-group="height">cm</button>
-              </div>
-            </div>
+
+          <!-- Feed filter tabs -->
+          <div class="feed-filter-row" id="feedFilterRow">
+            <button class="ff-btn active" data-filter="all">All</button>
+            <button class="ff-btn" data-filter="post">📸 Meals</button>
+            <button class="ff-btn" data-filter="recipe">📋 Recipes</button>
+            <button class="ff-btn" data-filter="promote">📢 Promos</button>
           </div>
+
+          <!-- Social feed -->
+          <div class="social-feed" id="socialFeed"><!-- JS rendered --></div>
+
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="userSex">Biological Sex</label>
-            <select id="userSex">
-              <option value="">Select…</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-            </select>
+        <!-- ── RIGHT: Community Sidebar ───────────────────── -->
+        <aside class="community-sidebar">
+
+          <!-- Trending tags -->
+          <div class="cs-widget">
+            <h3 class="cs-widget-title">Trending Tags</h3>
+            <div class="trending-tags">
+              <span class="trend-tag">#mealprep</span>
+              <span class="trend-tag">#highprotein</span>
+              <span class="trend-tag">#plantbased</span>
+              <span class="trend-tag">#bulkseason</span>
+              <span class="trend-tag">#glutenfree</span>
+              <span class="trend-tag">#lunchbox</span>
+              <span class="trend-tag">#saucylife</span>
+              <span class="trend-tag">#carbup</span>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="userActivity">Activity Level</label>
-            <select id="userActivity">
-              <option value="sedentary">Sedentary (desk job, little exercise)</option>
-              <option value="light">Lightly active (1–3x/week)</option>
-              <option value="moderate" selected>Moderately active (3–5x/week)</option>
-              <option value="very">Very active (6–7x/week)</option>
-              <option value="extra">Extra active (athlete / physical job)</option>
-            </select>
+
+          <!-- Top contributors -->
+          <div class="cs-widget">
+            <h3 class="cs-widget-title">Top Contributors</h3>
+            <div class="top-contributors" id="topContributors"><!-- JS --></div>
           </div>
-        </div>
+
+          <!-- Community stats -->
+          <div class="cs-widget cs-stats">
+            <h3 class="cs-widget-title">Community</h3>
+            <div class="stat-row"><span>Members</span><strong>4,821</strong></div>
+            <div class="stat-row"><span>Recipes shared</span><strong>1,203</strong></div>
+            <div class="stat-row"><span>Meals prepped</span><strong>38,742</strong></div>
+            <div class="stat-row"><span>Active today</span><strong>417</strong></div>
+          </div>
+
+        </aside>
       </div>
 
-      <!-- STEP 2: GOAL -->
-      <div class="card onboarding-card" data-step="2">
-        <div class="card-number">02</div>
-        <h2 class="card-title">Your Goal</h2>
-        <p class="card-desc">What are you optimizing for right now?</p>
-
-        <div class="goal-options">
-          <label class="goal-option">
-            <input type="radio" name="goal" value="cut" />
-            <div class="goal-card">
-              <span class="goal-icon">🔥</span>
-              <strong>Cut</strong>
-              <small>Lose fat, preserve muscle. Caloric deficit.</small>
-            </div>
-          </label>
-          <label class="goal-option">
-            <input type="radio" name="goal" value="maintain" checked />
-            <div class="goal-card">
-              <span class="goal-icon">⚖️</span>
-              <strong>Maintain</strong>
-              <small>Stay at current weight. Balanced macros.</small>
-            </div>
-          </label>
-          <label class="goal-option">
-            <input type="radio" name="goal" value="build" />
-            <div class="goal-card">
-              <span class="goal-icon">💪</span>
-              <strong>Build</strong>
-              <small>Gain muscle. Caloric surplus, high protein.</small>
-            </div>
-          </label>
-        </div>
-
-        <div class="form-group" style="margin-top:1.5rem">
-          <label for="mealsPerDay">Meals per day</label>
-          <div class="stepper-row">
-            <button class="stepper-btn" id="mealsDown">−</button>
-            <span class="stepper-val" id="mealsDisplay">3</span>
-            <button class="stepper-btn" id="mealsUp">+</button>
-            <input type="hidden" id="mealsPerDay" value="3" />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label for="prepDays">Prep days per week</label>
-          <div class="stepper-row">
-            <button class="stepper-btn" id="prepDown">−</button>
-            <span class="stepper-val" id="prepDisplay">2</span>
-            <button class="stepper-btn" id="prepUp">+</button>
-            <input type="hidden" id="prepDays" value="2" />
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Dietary preferences / restrictions</label>
-          <div class="tag-select" id="dietTags">
-            <button class="tag-btn" data-tag="no-gluten">Gluten-Free</button>
-            <button class="tag-btn" data-tag="no-dairy">Dairy-Free</button>
-            <button class="tag-btn" data-tag="vegetarian">Vegetarian</button>
-            <button class="tag-btn" data-tag="vegan">Vegan</button>
-            <button class="tag-btn" data-tag="no-nuts">No Nuts</button>
-            <button class="tag-btn" data-tag="low-sodium">Low Sodium</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- STEP 3: FOOD PREFERENCES -->
-      <div class="card onboarding-card" data-step="3">
-        <div class="card-number">03</div>
-        <h2 class="card-title">Food Preferences</h2>
-        <p class="card-desc">Select foods you like. We'll build your plan around them.</p>
-
-        <div class="food-category-tabs" id="foodCategoryTabs">
-          <button class="food-cat-tab active" data-cat="protein">Protein</button>
-          <button class="food-cat-tab" data-cat="carbs">Carbs</button>
-          <button class="food-cat-tab" data-cat="fats">Fats</button>
-          <button class="food-cat-tab" data-cat="veggies">Veggies</button>
-          <button class="food-cat-tab" data-cat="fruit">Fruit</button>
-        </div>
-
-        <div class="food-picker-grid" id="foodPickerGrid">
-          <!-- Populated by JS -->
-        </div>
-
-        <div class="form-group" style="margin-top:1.25rem">
-          <label for="customFoodInput">Add a food not listed</label>
-          <div class="input-add-row">
-            <input type="text" id="customFoodInput" placeholder="e.g. tempeh, cottage cheese…" />
-            <button class="btn-ghost-sm" id="addCustomFoodBtn">Add</button>
-          </div>
-        </div>
-        <div class="custom-food-chips" id="customFoodChips"></div>
-      </div>
-
-    </div><!-- /onboarding-grid -->
-
-    <!-- CTA -->
-    <div class="onboarding-cta">
-      <button class="btn-primary btn-generate" id="generatePlanBtn">
-        <span>Generate My Meal Plan</span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-      </button>
-      <p class="cta-note">Takes about 2 seconds. Free. Always.</p>
-    </div>
+    </section>
 
   </main>
 
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <!--  VIEW 2 — MEAL PLAN                                        -->
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <main class="view" id="view-plan">
+  <!-- ┌─────────────────────────────────────────────────────────┐ -->
+  <!-- │  MOBILE BOTTOM NAV                                      │ -->
+  <!-- └─────────────────────────────────────────────────────────┘ -->
+  <nav class="mobile-nav" id="mobileNav">
+    <button class="mnav-item active" data-view="onboarding">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Setup</span>
+    </button>
+    <button class="mnav-item" data-view="plan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>Plan</span>
+    </button>
+    <button class="mnav-item" data-view="grocery">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+      <span>Grocery</span>
+    </button>
+    <button class="mnav-item mnav-community" data-view="community">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      <span>Community</span>
+    </button>
+  </nav>
 
-    <div class="view-header">
-      <div>
-        <h2 class="view-title" id="planTitle">Your Week</h2>
-        <p class="view-subtitle" id="planSubtitle">Loading your plan…</p>
-      </div>
-      <div class="view-actions">
-        <div class="unit-toggle-group" id="globalUnitToggle">
-          <button class="unit-toggle active" data-unit="g" data-group="global">g</button>
-          <button class="unit-toggle" data-unit="oz" data-group="global">oz</button>
-          <button class="unit-toggle" data-unit="cups" data-group="global">cups</button>
-        </div>
-        <button class="btn-outline" id="regeneratePlanBtn">↺ Regenerate</button>
-      </div>
-    </div>
-
-    <!-- Macro summary strip -->
-    <div class="macro-strip" id="macroStrip">
-      <div class="macro-card">
-        <span class="macro-label">Daily Calories</span>
-        <span class="macro-val" id="macroCalories">—</span>
-      </div>
-      <div class="macro-card">
-        <span class="macro-label">Protein</span>
-        <span class="macro-val" id="macroProtein">—<small>g</small></span>
-      </div>
-      <div class="macro-card">
-        <span class="macro-label">Carbs</span>
-        <span class="macro-val" id="macroCarbs">—<small>g</small></span>
-      </div>
-      <div class="macro-card">
-        <span class="macro-label">Fat</span>
-        <span class="macro-val" id="macroFat">—<small>g</small></span>
-      </div>
-      <div class="macro-card macro-card-alt">
-        <span class="macro-label">Prep Sessions</span>
-        <span class="macro-val" id="macroPrepSessions">—</span>
-      </div>
-    </div>
-
-    <!-- Day tabs -->
-    <div class="day-tab-bar" id="dayTabBar">
-      <!-- JS populated -->
-    </div>
-
-    <!-- Meals for selected day -->
-    <div class="meals-container" id="mealsContainer">
-      <!-- JS populated -->
-    </div>
-
-  </main>
-
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <!--  VIEW 3 — FOOD LIBRARY                                     -->
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <main class="view" id="view-foods">
-
-    <div class="view-header">
-      <div>
-        <h2 class="view-title">Food Library</h2>
-        <p class="view-subtitle">Browse and measure. Toggle units to compare.</p>
-      </div>
-      <div class="view-actions">
-        <input type="search" id="foodSearch" placeholder="Search foods…" class="search-input" />
-      </div>
-    </div>
-
-    <div class="lib-filter-bar">
-      <button class="lib-filter-btn active" data-filter="all">All</button>
-      <button class="lib-filter-btn" data-filter="protein">Protein</button>
-      <button class="lib-filter-btn" data-filter="carbs">Carbs</button>
-      <button class="lib-filter-btn" data-filter="fats">Fats</button>
-      <button class="lib-filter-btn" data-filter="veggies">Veggies</button>
-      <button class="lib-filter-btn" data-filter="fruit">Fruit</button>
-    </div>
-
-    <div class="food-library-grid" id="foodLibraryGrid">
-      <!-- JS populated -->
-    </div>
-
-  </main>
-
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <!--  VIEW 4 — GROCERY LIST                                     -->
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <main class="view" id="view-grocery">
-
-    <div class="view-header">
-      <div>
-        <h2 class="view-title">Grocery List</h2>
-        <p class="view-subtitle" id="grocerySubtitle">Based on your current meal plan.</p>
-      </div>
-      <div class="view-actions">
-        <button class="btn-ghost-sm" id="clearCheckedBtn">Clear checked</button>
-        <button class="btn-outline" id="printGroceryBtn">⎙ Print</button>
-      </div>
-    </div>
-
-    <!-- Progress strip -->
-    <div class="grocery-progress" id="groceryProgress">
-      <div class="gp-bar-wrap">
-        <div class="gp-bar" id="gpBar"></div>
-      </div>
-      <span class="gp-label" id="gpLabel">0 / 0 items checked</span>
-    </div>
-
-    <!-- Grocery sections -->
-    <div class="grocery-sections" id="grocerySections">
-      <div class="empty-state">
-        <p>Generate a meal plan first to populate your grocery list.</p>
-        <button class="btn-primary" onclick="switchView('onboarding')">Go to Setup →</button>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- ════════════════════════════════════════════ -->
-  <!--  TOAST NOTIFICATIONS                        -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="toast-container" id="toastContainer"></div>
-
-  <!-- ════════════════════════════════════════════ -->
-  <!--  FOOD DETAIL MODAL                          -->
-  <!-- ════════════════════════════════════════════ -->
-  <div class="modal-overlay" id="modalOverlay" style="display:none">
-    <div class="modal-card" id="modalCard">
-      <button class="modal-close" id="modalClose">&times;</button>
-      <div class="modal-content" id="modalContent"></div>
+  <!-- ┌─────────────────────────────────────────────────────────┐ -->
+  <!-- │  FOOD DETAIL MODAL                                      │ -->
+  <!-- └─────────────────────────────────────────────────────────┘ -->
+  <div class="modal-bg" id="modalBg" style="display:none" role="dialog" aria-modal="true">
+    <div class="modal-panel" id="modalPanel">
+      <button class="modal-x" id="modalClose" aria-label="Close">×</button>
+      <div id="modalBody"></div>
     </div>
   </div>
+
+  <!-- ┌─────────────────────────────────────────────────────────┐ -->
+  <!-- │  COMMENT DRAWER (slides up on mobile)                  │ -->
+  <!-- └─────────────────────────────────────────────────────────┘ -->
+  <div class="drawer-bg" id="drawerBg" style="display:none">
+    <div class="comment-drawer" id="commentDrawer">
+      <div class="drawer-handle"></div>
+      <h3 class="drawer-title" id="drawerTitle">Comments</h3>
+      <div class="drawer-comments" id="drawerComments"></div>
+      <div class="drawer-compose">
+        <input type="text" id="drawerInput" placeholder="Add a comment…" />
+        <button class="btn-gold" id="drawerSubmit">Post</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div class="toast-wrap" id="toastWrap"></div>
 
   <script src="script.js"></script>
 </body>
