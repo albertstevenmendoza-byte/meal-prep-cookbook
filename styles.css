@@ -1778,7 +1778,8 @@ select {
     width: 100%;
     min-width: 0;
     max-width: 100vw;
-    padding-bottom: var(--nav-h-mobile);
+    /* Account for nav height AND iPhone home-bar safe area */
+    padding-bottom: calc(var(--nav-h-mobile) + env(safe-area-inset-bottom));
   }
 
   .mobile-header { display: flex; }
@@ -2226,4 +2227,436 @@ select {
   .sub-tiers { grid-template-columns: 1fr; }
   .creator-stats-row { grid-template-columns: 1fr 1fr; }
   .b2b-grid { grid-template-columns: 1fr; }
+}
+
+/* ╔═══════════════════════════════════════════════════════════════════╗
+   ║  MOBILE-FIRST POLISH PASS                                        ║
+   ║  Target: 360–430px (all modern phones)                           ║
+   ║                                                                   ║
+   ║  Fix list:                                                        ║
+   ║  1. iOS input-zoom  — font-size ≥ 16px on every interactive el   ║
+   ║  2. Safe-area insets — notch + home-bar on iPhone X+             ║
+   ║  3. Touch targets   — 44px minimum per Apple HIG                 ║
+   ║  4. Horizontal overflow — hard-stop on every container           ║
+   ║  5. Layout stacking — all multi-col → 1-col at 480px             ║
+   ║  6. Typography      — readable at 360px without pinch            ║
+   ╚═══════════════════════════════════════════════════════════════════╝ */
+
+
+/* ─── 1. iOS ZOOM PREVENTION ─────────────────────────────────────────
+   iOS Safari zooms any focused input with font-size < 16px.
+   Override ALL text inputs app-wide on mobile — no exceptions.     */
+@media (max-width: 860px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="search"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="date"],
+  select,
+  textarea,
+  .composer-input,
+  .composer-field,
+  .conv-search,
+  #drawerInput,
+  #threadInput,
+  #muteInput,
+  #libSearch,
+  #userName, #userAge, #userWeight, #userHeight,
+  #customFoodInput, #composerImgInput,
+  #recipeTitle, #recipeIngredients, #recipeSteps,
+  #promoBusiness, #promoCode, #liveTitle,
+  #convSearch {
+    font-size: 16px !important;
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
+
+/* ─── 2. SAFE-AREA INSETS (iPhone notch + home bar) ─────────────────
+   env() values are zero on non-notched phones, so no visual change there. */
+
+.mobile-header {
+  padding-top: env(safe-area-inset-top);
+  height: calc(var(--header-h-mobile) + env(safe-area-inset-top));
+}
+
+.mobile-nav {
+  padding-bottom: max(env(safe-area-inset-bottom), 6px);
+  height: auto;
+  min-height: var(--nav-h-mobile);
+  padding-left:  max(env(safe-area-inset-left), .5rem);
+  padding-right: max(env(safe-area-inset-right), .5rem);
+}
+
+/* Push content above the home bar */
+@media (max-width: 860px) {
+  .view {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  .comment-drawer {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  .gift-modal {
+    padding-bottom: max(1.75rem, env(safe-area-inset-bottom));
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+  }
+}
+
+
+/* ─── 3. TOUCH TARGETS (44×44px minimum per Apple HIG) ──────────────*/
+@media (max-width: 860px) {
+
+  /* Stepper +/- buttons */
+  .step-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 1.4rem;
+  }
+
+  /* Unit pills (lbs/kg, g/oz/cups) */
+  .unit-pill {
+    min-height: 44px;
+    padding: .6rem 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Mobile bottom nav items */
+  .mnav-item {
+    min-height: 52px;
+    padding: .5rem .5rem .35rem;
+    gap: .15rem;
+  }
+  .mnav-item span:last-child { font-size: .65rem; }
+
+  /* Primary action buttons */
+  .btn-gold  { min-height: 50px; }
+  .btn-xl    { min-height: 56px; font-size: 1rem; }
+
+  /* Secondary buttons */
+  .btn-outline,
+  .btn-ghost { min-height: 44px; display: inline-flex; align-items: center; }
+
+  /* Food chips */
+  .food-chip  { min-height: 64px; padding: .85rem .4rem; }
+
+  /* Goal tiles */
+  .goal-tile-inner { padding: .9rem 1rem; min-height: 56px; }
+
+  /* Dietary tags */
+  .dtag {
+    padding: .6rem 1rem;
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Category tabs */
+  .ftab, .lf-btn, .ff-btn, .fmode-tab, .shop-cat-btn {
+    min-height: 42px;
+    padding: .55rem 1rem;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Grocery rows */
+  .g-item { padding: 1rem 1.25rem; min-height: 60px; }
+
+  /* Day tabs in plan view */
+  .day-tab { min-height: 48px; padding: .75rem 1.15rem; }
+
+  /* Post action buttons */
+  .pa-btn {
+    min-height: 40px;
+    padding: .55rem .75rem;
+  }
+
+  /* Sidebar nav items (visible in tablet portrait) */
+  .snav-item { padding: .85rem 1rem; min-height: 48px; }
+
+  /* Recipe toggle */
+  .recipe-toggle { min-height: 44px; }
+
+  /* Composer type buttons */
+  .ctype-btn {
+    min-height: 40px;
+    padding: .45rem .85rem;
+  }
+
+  /* Algo panel controls */
+  .algo-interest-item { min-height: 44px; display: flex; align-items: center; justify-content: center; }
+  #muteAddBtn { min-height: 44px; }
+
+  /* Gift items */
+  .gift-item { min-height: 80px; }
+
+  /* Quick create cards */
+  .qc-template { min-height: 72px; min-width: 80px; }
+
+  /* Trending tags in sidebar */
+  .trend-tag {
+    padding: .45rem .75rem;
+    font-size: .8rem;
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+  }
+
+  /* Drawer compose */
+  .drawer-compose input { min-height: 44px; }
+  .drawer-compose .btn-gold { min-height: 44px; padding: .6rem 1rem; }
+}
+
+
+/* ─── 4. HORIZONTAL OVERFLOW — hard stop everywhere ─────────────────*/
+@media (max-width: 860px) {
+  .view,
+  .setup-card,
+  .community-feed-col,
+  .community-layout,
+  .post-card,
+  .social-feed,
+  .fl-card,
+  .meal-card,
+  .grocery-body,
+  .composer-card {
+    max-width: 100%;
+    overflow-x: hidden;
+    word-break: break-word;
+  }
+
+  /* Explicit-width tables (meal plan) — allow horizontal scroll on wrapper */
+  .meal-body {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .meal-table {
+    min-width: 340px;
+  }
+
+  /* Smooth momentum scroll on strips */
+  .macro-ribbon,
+  .day-strip,
+  .quick-create-strip,
+  .live-now-strip {
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+  }
+
+  .mrib-item,
+  .day-tab,
+  .qc-template,
+  .live-card {
+    scroll-snap-align: start;
+  }
+}
+
+
+/* ─── 5. LAYOUT STACKING — 480px and below ───────────────────────────
+   360–480px phones: everything collapses to a single column.        */
+@media (max-width: 480px) {
+
+  /* Hero type */
+  .hero-title    { font-size: 2.2rem; }
+  .hero-body     { font-size: .9rem; }
+  .hero-eyebrow  { font-size: .68rem; }
+  .page-hero     { padding: 1rem 0 1.5rem; }
+
+  /* Setup card inner padding */
+  .setup-card { padding: 1.1rem 1rem; }
+  .card-step-num { font-size: 2rem; margin-bottom: .25rem; }
+  .card-heading  { font-size: 1.15rem; }
+
+  /* Goal tiles: vertical stack */
+  .goal-tile-inner {
+    flex-direction: column;
+    text-align: center;
+    gap: .3rem;
+  }
+
+  /* Food chips: 3-across */
+  .food-chip-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .food-chip { font-size: .72rem; }
+  .food-chip .chip-emoji { font-size: 1.2rem; }
+
+  /* CTA block */
+  .btn-xl { width: 100%; justify-content: center; }
+  .cta-block { padding: 1.5rem 0 .75rem; }
+
+  /* View heading */
+  .view-heading { font-size: 1.5rem; }
+  .view { padding: 1.1rem .9rem 5rem; }
+
+  /* Macro ribbon: narrower cells */
+  .mrib-item { padding: .85rem .85rem; min-width: 85px; }
+  .mrib-val  { font-size: 1.45rem; }
+
+  /* Composer: stack action row */
+  .composer-image-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .5rem;
+  }
+  .composer-img-url  { width: 100%; }
+  .composer-submit   { width: 100%; justify-content: center; min-height: 46px; }
+  .composer-top      { gap: .65rem; }
+  .composer-card     { padding: 1rem; }
+  .composer-type-group { gap: .3rem; }
+  .ctype-btn { font-size: .72rem; padding: .42rem .6rem; flex: 1; text-align: center; justify-content: center; }
+
+  /* Feed filter pills: wrap freely */
+  .feed-filter-row,
+  .feed-mode-tabs { flex-wrap: wrap; gap: .3rem; }
+  .ff-btn, .fmode-tab { flex: 1; min-width: 70px; text-align: center; justify-content: center; }
+
+  /* Feed mode bar: stack */
+  .feed-mode-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: .65rem;
+  }
+  .feed-mode-actions { justify-content: flex-end; }
+
+  /* Post cards: reduce padding */
+  .post-header    { padding: .85rem 1rem .6rem; }
+  .post-content   { padding: .65rem 1rem; font-size: .87rem; }
+  .post-tags      { padding: 0 1rem .6rem; }
+  .post-actions   { padding: .5rem .75rem .8rem; gap: .1rem; }
+  .pa-btn         { font-size: .75rem; padding: .5rem .6rem; gap: .3rem; }
+  .pa-btn svg     { width: 14px; height: 14px; }
+
+  /* Post image placeholder: shorter */
+  .post-img-placeholder { height: 160px; font-size: 3rem; }
+
+  /* Promote biz card */
+  .promote-biz { flex-direction: column; align-items: flex-start; }
+
+  /* Recipe details */
+  .recipe-body { padding: .75rem; }
+  .recipe-list { font-size: .82rem; }
+
+  /* Grocery section */
+  .g-section-hdr { padding: .65rem 1rem; }
+  .g-item        { padding: .85rem 1rem; }
+  .g-name        { font-size: .85rem; }
+  .g-amt         { font-size: .72rem; }
+
+  /* Food library cards */
+  .fl-card { padding: 1rem; }
+  .fl-emoji { font-size: 1.5rem; }
+  .fl-name  { font-size: .92rem; }
+  .fl-desc  { font-size: .74rem; }
+  .fl-macros { gap: .3rem; }
+
+  /* Shop: 1 column on very small phones */
+  .product-grid { grid-template-columns: 1fr; }
+
+  /* Creator stats: 2-col */
+  .creator-stats-row { grid-template-columns: 1fr 1fr; }
+  .creator-stat-val  { font-size: 1.45rem; }
+
+  /* B2B grid: 1-col */
+  .b2b-grid { grid-template-columns: 1fr; }
+
+  /* Quick create strip */
+  .qc-template { min-width: 72px; padding: .6rem .5rem; }
+  .qc-emoji    { font-size: 1.4rem; }
+  .qc-label    { font-size: .64rem; }
+
+  /* Live strip */
+  .live-card { width: 120px; }
+  .live-preview { height: 72px; font-size: 1.75rem; }
+
+  /* Modals: near-full screen */
+  .modal-panel {
+    padding: 1.25rem 1rem;
+    margin: .35rem;
+    width: calc(100% - .7rem);
+    max-height: 94vh;
+  }
+
+  .sub-modal {
+    padding: 1.25rem 1rem;
+    max-height: 94vh;
+    overflow-y: auto;
+  }
+
+  .sub-modal-title { font-size: 1.3rem; }
+  .sub-tiers       { grid-template-columns: 1fr; gap: .65rem; }
+
+  .why-modal,
+  .dm-share-modal {
+    padding: 1.25rem 1rem;
+    margin: .35rem;
+    width: calc(100% - .7rem);
+  }
+
+  .why-actions { flex-direction: column; gap: .5rem; }
+  .why-actions button { min-height: 46px; }
+
+  /* Gift modal */
+  .gift-options { grid-template-columns: repeat(2, 1fr); gap: .5rem; }
+  .gift-item .gift-emoji { font-size: 1.5rem; }
+  .gift-modal-header h3 { font-size: 1.1rem; }
+
+  /* Comment drawer */
+  .comment-drawer { padding: .85rem 1rem; }
+  .drawer-title   { font-size: 1rem; }
+  .dc-text        { font-size: .82rem; }
+
+  /* Messages */
+  .conv-panel-header { padding: .75rem 1rem; }
+  .conv-item         { padding: .75rem 1rem; }
+  .conv-name         { font-size: .85rem; }
+  .conv-preview      { font-size: .72rem; }
+  .thread-messages   { padding: .85rem 1rem; }
+  .msg-bubble        { font-size: .84rem; padding: .55rem .8rem; max-width: 82%; }
+  .thread-compose    { padding: .65rem 1rem; gap: .5rem; }
+
+  /* Meal plan */
+  .meal-hdr  { padding: .85rem 1rem; }
+  .meal-name { font-size: .95rem; }
+  .meal-body { padding: .85rem 1rem 1rem; }
+  .meal-table th, .meal-table td { padding: .45rem .3rem .45rem 0; font-size: .8rem; }
+  .prep-notice { font-size: .8rem; padding: .6rem .9rem; }
+
+  /* View topbar stacking */
+  .view-topbar { gap: .75rem; }
+  .topbar-actions {
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+
+  /* Algo panel: full width */
+  .algo-panel {
+    width: 100%;
+    max-width: 100%;
+    right: -100%;
+    padding: 1.25rem 1rem;
+  }
+  .algo-panel.open { right: 0; }
+  .algo-interest-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Sidebar coins strip */
+  .sidebar-coins { display: none; }
+}
+
+
+/* ─── 6. FINE-TUNING FOR VERY NARROW (360px) ────────────────────────*/
+@media (max-width: 380px) {
+  .view { padding: 1rem .75rem 5rem; }
+  .food-chip { font-size: .68rem; }
+  .food-chip .chip-emoji { font-size: 1.1rem; }
+  .food-chip-grid { grid-template-columns: repeat(2, 1fr); }
+  .ctype-btn { font-size: .68rem; padding: .4rem .45rem; }
+  .pa-btn    { font-size: .7rem; padding: .45rem .5rem; }
 }
