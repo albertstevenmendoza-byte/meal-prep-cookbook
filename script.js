@@ -1,6 +1,6 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
- * ║  MISE v2 — script.js                                            ║
+ * ║  COMEMOS — script.js                                            ║
  * ║  Features: Onboarding · Meal Plan · Food Library · Grocery      ║
  * ║            Unit Engine · Community Hub · Social Feed            ║
  * ║                                                                  ║
@@ -335,7 +335,7 @@ const MOCK_POSTS = [
     tags: ['#mealprep','#mealdelivery'],
     business_name: 'BulkSeason Meal Co.',
     business_desc: 'Fresh, chef-prepared macro meals. Weekly subscription. Local delivery.',
-    promo_code: 'MISE20',
+    promo_code: 'COMEMOS20',
     likes_count: 107, comments_count: 18, is_liked: false, is_saved: false,
     created_at: '3h ago',
     comments: [
@@ -521,14 +521,14 @@ const STATE = {
    ═══════════════════════════════════════════════════════════════════ */
 
 const db = {
-  async saveProfile(p)  { localStorage.setItem('mise2_profile', JSON.stringify(p)); return { data:p }; },
-  async loadProfile()   { const r = localStorage.getItem('mise2_profile'); return { data: r ? JSON.parse(r) : null }; },
-  async savePlan(plan)  { localStorage.setItem('mise2_plan', JSON.stringify(plan)); return { data:plan }; },
-  async loadPlan()      { const r = localStorage.getItem('mise2_plan'); return { data: r ? JSON.parse(r) : null }; },
-  async saveChecked(st) { localStorage.setItem('mise2_checked', JSON.stringify(st)); return { data:st }; },
-  async loadChecked()   { const r = localStorage.getItem('mise2_checked'); return r ? JSON.parse(r) : {}; },
-  async savePosts(ps)   { localStorage.setItem('mise2_posts', JSON.stringify(ps)); return { data:ps }; },
-  async loadPosts()     { const r = localStorage.getItem('mise2_posts'); return r ? JSON.parse(r) : null; },
+  async saveProfile(p)  { localStorage.setItem('comemos_profile', JSON.stringify(p)); return { data:p }; },
+  async loadProfile()   { const r = localStorage.getItem('comemos_profile'); return { data: r ? JSON.parse(r) : null }; },
+  async savePlan(plan)  { localStorage.setItem('comemos_plan', JSON.stringify(plan)); return { data:plan }; },
+  async loadPlan()      { const r = localStorage.getItem('comemos_plan'); return { data: r ? JSON.parse(r) : null }; },
+  async saveChecked(st) { localStorage.setItem('comemos_checked', JSON.stringify(st)); return { data:st }; },
+  async loadChecked()   { const r = localStorage.getItem('comemos_checked'); return r ? JSON.parse(r) : {}; },
+  async savePosts(ps)   { localStorage.setItem('comemos_posts', JSON.stringify(ps)); return { data:ps }; },
+  async loadPosts()     { const r = localStorage.getItem('comemos_posts'); return r ? JSON.parse(r) : null; },
 };
 
 const delay = (ms = 0) => new Promise(r => setTimeout(r, ms));
@@ -1361,7 +1361,7 @@ function renderSidebarWidgets() {
    ═══════════════════════════════════════════════════════════════════ */
 
 function initTheme() {
-  const saved = localStorage.getItem('mise2_theme');
+  const saved = localStorage.getItem('comemos_theme');
   if (saved === 'light') applyTheme('light');
   else applyTheme('dark');
 
@@ -1376,7 +1376,7 @@ function initTheme() {
 function applyTheme(mode) {
   STATE.dark_mode = mode === 'dark';
   document.documentElement.setAttribute('data-theme', mode);
-  localStorage.setItem('mise2_theme', mode);
+  localStorage.setItem('comemos_theme', mode);
   // Toggle sun/moon icons
   const moon = document.getElementById('themeIconMoon');
   const sun  = document.getElementById('themeIconSun');
@@ -1546,7 +1546,7 @@ async function boot() {
   initGlobalEvents();
 
   console.log(
-    '%c🍽 MISE v2 — Ready\n%cState:', 
+    '%c🍽 COMEMOS — Ready\n%cState:', 
     'color:#d4a853;font-family:serif;font-size:1.1em;font-weight:bold',
     'color:#7a7368',
     STATE
@@ -2443,7 +2443,7 @@ window.showWhyShown = function(postId) {
   ];
 
   body.innerHTML = `
-    <p style="font-size:.84rem;color:var(--ink-muted);margin-bottom:1rem">${isAd ? 'This is a paid advertisement.' : 'Mise ranked this post based on these factors:'}</p>
+    <p style="font-size:.84rem;color:var(--ink-muted);margin-bottom:1rem">${isAd ? 'This is a paid advertisement.' : 'Comemos ranked this post based on these factors:'}</p>
     ${factors.map(f => `
       <div class="why-factor">
         <span class="why-factor-icon">📊</span>
@@ -2491,7 +2491,7 @@ const SUBSCRIPTION_TIERS = [
     cta: 'Current Plan', current: true,
   },
   {
-    id: 'pro', name: 'Mise Pro', price: 8.99, desc: 'The full experience, no ads.',
+    id: 'pro', name: 'Comemos Pro', price: 8.99, desc: 'The full experience, no ads.',
     features: ['Everything in Free','Ad-free feed','Unlimited DMs & group chats','Advanced food analytics','500 coins / month','Pro badge on profile','Priority feed ranking'],
     cta: 'Upgrade to Pro', featured: true,
   },
@@ -2866,7 +2866,7 @@ window.switchView = function(id) {
    UNIFIED INITIALISER  (replaces duplicate function boot + 2nd listener)
    One DOMContentLoaded, called exactly once, no duplicate declarations.
    ═══════════════════════════════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', async function mise_init() {
+document.addEventListener('DOMContentLoaded', async function comemos_init() {
   // ── Core sequence (was §19 boot) ──────────────────────────────
   initTheme();
   await restoreState();
@@ -2882,7 +2882,7 @@ document.addEventListener('DOMContentLoaded', async function mise_init() {
   renderLiveNowStrip();
 
   console.log(
-    '%c🍽  MISE — Ready  |  Engagement Engine Active',
+    '%c🍽  COMEMOS — Ready  |  Engagement Engine Active',
     'color:#d4a853;font-family:serif;font-size:1.1em;font-weight:bold'
   );
 });
