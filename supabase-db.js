@@ -599,50 +599,88 @@ const AuthUI = {
   async handleSignIn(e) {
     e.preventDefault();
     AuthUI.clearErrors();
-    const email    = document.getElementById('siEmail')?.value.trim();
-    const password = document.getElementById('siPassword')?.value;
+
+    const email    = document.getElementById('siEmail')?.value.trim()   || '';
+    const password = document.getElementById('siPassword')?.value       || '';
     const btn      = document.getElementById('siSubmit');
-    if (!email || !password) { AuthUI.setError('Please fill in all fields.'); return; }
+
+    if (!email)    { AuthUI.setError('Please enter your email address.'); return; }
+    if (!password) { AuthUI.setError('Please enter your password.');      return; }
 
     AuthUI.setLoading(btn, true);
-    const { error } = await auth.signIn(email, password);
-    AuthUI.setLoading(btn, false);
-
-    if (error) AuthUI.setError(error.message || 'Sign-in failed. Check your credentials.');
+    try {
+      const { error } = await auth.signIn(email, password);
+      if (error) {
+        const msg = error.message || '';
+        if (msg.includes('Invalid login'))   AuthUI.setError('Incorrect email or password.');
+        else if (msg.includes('confirmed'))  AuthUI.setError('Please confirm your email first, then sign in.');
+        else                                 AuthUI.setError(msg || 'Sign-in failed. Please try again.');
+      }
+      // On success onAuthChange fires → AuthUI.hide() → comemos_boot()
+    } catch(err) {
+      AuthUI.setError('Connection error. Check your internet and try again.');
+      console.error('signIn error:', err);
+    } finally {
+      AuthUI.setLoading(btn, false);
+    }
   },
 
   async handleSignUp(e) {
     e.preventDefault();
     AuthUI.clearErrors();
-    const name     = document.getElementById('suName')?.value.trim();
-    const email    = document.getElementById('suEmail')?.value.trim();
-    const password = document.getElementById('suPassword')?.value;
-    const username = document.getElementById('suUsername')?.value.trim().toLowerCase() || '';
-    const btn      = document.getElementById('suSubmit');
 
-    if (!name || !email || !password) { AuthUI.setError('Please fill in all fields.'); return; }
-    if (password.length < 8) { AuthUI.setError('Password must be at least 8 characters.'); return; }
+    const name     = (document.getElementById('suName')?.value     || '').trim();
+    const email    = (document.getElementById('suEmail')?.value    || '').trim();
+    const password =  document.getElementById('suPassword')?.value || '';
+    const username = (document.getElementById('suUsername')?.value || '').trim().toLowerCase();
+    const btn      =  document.getElementById('suSubmit');
+
+    // Explicit validation — never rely on HTML5 browser tooltips
+    if (!name)              { AuthUI.setError('Please enter your full name.');               return; }
+    if (!email)             { AuthUI.setError('Please enter your email address.');           return; }
+    if (!email.includes('@')){ AuthUI.setError('Please enter a valid email address.');       return; }
+    if (!password)          { AuthUI.setError('Please create a password.');                  return; }
+    if (password.length < 8){ AuthUI.setError('Password must be at least 8 characters.');   return; }
     if (username && !/^[a-z0-9_]{3,24}$/.test(username)) {
-      AuthUI.setError('Username must be 3–24 chars: lowercase letters, numbers, or underscores.');
+      AuthUI.setError('Username: 3–24 chars, lowercase letters, numbers or underscores only.');
       return;
     }
 
     AuthUI.setLoading(btn, true);
-    const { data: signUpData, error } = await auth.signUp(email, password, name);
-    AuthUI.setLoading(btn, false);
+    try {
+      const { data: signUpData, error } = await auth.signUp(email, password, name);
 
-    if (error) {
-      AuthUI.setError(error.message || 'Sign up failed. Please try again.');
-    } else {
+      if (error) {
+        const msg = error.message || '';
+        if (msg.includes('already registered') || msg.includes('already exists')) {
+          AuthUI.setError('An account with this email already exists. Try signing in instead.');
+        } else {
+          AuthUI.setError(msg || 'Sign up failed. Please try again.');
+        }
+        return;
+      }
+
+      // Save username to profile (trigger creates the row first)
       if (username && signUpData?.user?.id) {
         setTimeout(async () => {
-          await supabase.from('profiles')
-            .update({ username })
-            .eq('id', signUpData.user.id);
+          try {
+            await _supabaseDbImpl.updateProfileFields({ username, name });
+          } catch(e) { console.warn('username save:', e); }
         }, 1500);
       }
-      const confirmMsg = document.getElementById('authConfirmMsg');
-      if (confirmMsg) confirmMsg.style.display = 'block';
+
+      // If email confirmation is OFF in Supabase, onAuthChange fires immediately.
+      // If it's ON, show the confirmation message.
+      if (!signUpData?.session) {
+        const confirmMsg = document.getElementById('authConfirmMsg');
+        if (confirmMsg) confirmMsg.style.display = 'block';
+      }
+
+    } catch(err) {
+      AuthUI.setError('Connection error. Check your internet and try again.');
+      console.error('signUp error:', err);
+    } finally {
+      AuthUI.setLoading(btn, false);
     }
   },
 
@@ -677,7 +715,22 @@ const AuthUI = {
 
     // Google OAuth
     document.getElementById('googleSignInBtn')
-      ?.addEventListener('click', () => auth.signInWithGoogle());
+      ?.addEventListener('click', async () => {
+        AuthUI.clearErrors();
+        try {
+          const { error } = await auth.signInWithGoogle();
+          if (error) {
+            // Most likely not configured in Supabase dashboard yet
+            AuthUI.setError(
+              'Google sign-in is not yet configured. ' +
+              'Please sign in with email and password, or ask the admin to enable Google in Supabase.'
+            );
+          }
+          // On success the browser redirects — nothing else to do here
+        } catch(err) {
+          AuthUI.setError('Google sign-in unavailable. Please use email and password.');
+        }
+      });
 
     // Sign-out (sidebar)
     document.getElementById('signOutBtn')
