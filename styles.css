@@ -2661,3 +2661,116 @@ select {
   .ctype-btn { font-size: .68rem; padding: .4rem .45rem; }
   .pa-btn    { font-size: .7rem; padding: .45rem .5rem; }
 }
+
+/* ─── INTENTIONAL OVERFLOW & EMPTY STATE POLISH ─────────────────────
+   Fixes: macro label wrap · scroll strip fade · tab sizing ·
+          composer cleanliness · plan empty state              */
+
+/* 1. Macro ribbon — never wrap labels */
+.mrib-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Tighter ribbon on mobile so all 5 cells fit without overflow */
+@media (max-width: 860px) {
+  .mrib-item    { padding: .85rem .9rem; min-width: 76px; }
+  .mrib-val     { font-size: 1.55rem; }
+  .mrib-val small { font-size: .6em; }
+  .mrib-label   { font-size: .62rem; letter-spacing: .07em; }
+}
+
+/* 2. Intentional scroll fade — strips that overflow to the right
+   get a gradient mask so the clip looks deliberate, not broken  */
+.quick-create-strip,
+.live-now-strip,
+.day-strip {
+  -webkit-mask-image: linear-gradient(to right, black 88%, transparent 100%);
+          mask-image: linear-gradient(to right, black 88%, transparent 100%);
+}
+
+/* Also on the macro ribbon */
+.macro-ribbon {
+  -webkit-mask-image: linear-gradient(to right, black 92%, transparent 100%);
+          mask-image: linear-gradient(to right, black 92%, transparent 100%);
+}
+
+/* 3. Feed mode tabs — active state uses teal accent instead of
+   hard white-block inversion, which looked too heavy on Ocean Drift */
+.fmode-tab.active {
+  background: rgba(56, 207, 224, .13);
+  color: var(--gold);
+  border-color: var(--gold);
+}
+
+/* Keep tabs equal-height regardless of active state */
+.feed-mode-tabs {
+  align-items: stretch;
+}
+.fmode-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 4. Composer image URL row — cleaner when field is hidden */
+.composer-image-row {
+  align-items: center;
+  gap: .65rem;
+  flex-wrap: wrap;
+}
+
+.composer-img-btn {
+  background: none;
+  border: 1px solid var(--border-mid);
+  border-radius: 20px;
+  padding: .38rem .85rem;
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  white-space: nowrap;
+  transition: all var(--dur);
+}
+.composer-img-btn:hover,
+.composer-img-btn.active {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.composer-img-url {
+  flex: 1;
+  min-width: 0;
+  font-size: .84rem;
+}
+
+/* 5. Plan view empty state */
+.plan-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 1.5rem;
+  text-align: center;
+  gap: 1rem;
+  animation: viewIn .3s var(--ease);
+}
+.plan-empty-icon {
+  font-size: 3.2rem;
+  opacity: .5;
+}
+.plan-empty-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  color: var(--ink);
+}
+.plan-empty-sub {
+  font-size: .88rem;
+  color: var(--ink-muted);
+  max-width: 280px;
+  line-height: 1.6;
+}
