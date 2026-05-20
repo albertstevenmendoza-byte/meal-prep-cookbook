@@ -21,18 +21,27 @@
    §A  SUPABASE CLIENT
    ═══════════════════════════════════════════════════════════════════ */
 
-const supabase = window.supabase.createClient(
-  COMEMOS_CONFIG.SUPABASE_URL,
-  COMEMOS_CONFIG.SUPABASE_ANON_KEY
-);
+let supabase;
+try {
+  supabase = window.supabase.createClient(
+    COMEMOS_CONFIG.SUPABASE_URL,
+    COMEMOS_CONFIG.SUPABASE_ANON_KEY
+  );
+} catch (e) {
+  console.error('[Comemos] Supabase init failed:', e);
+  supabase = null;
+}
 
 /* ═══════════════════════════════════════════════════════════════════
    §B  HELPER — safe current user
    ═══════════════════════════════════════════════════════════════════ */
 
 async function currentUser() {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+  if (!supabase) return null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
+  } catch { return null; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -463,8 +472,10 @@ const auth = {
   },
 
   async signOut() {
-    await supabase.auth.signOut();
-    window.location.reload();
+    if (!supabase) { window.location.reload(); return; }
+    try { await supabase.auth.signOut(); } catch(e) { console.warn(e); }
+    // onAuthChange will fire with null → AuthUI shows the login screen
+    // handleSignOut() in script.js also resets the UI as a safety net
   },
 
   async getSession() {
@@ -498,6 +509,13 @@ const AuthUI = {
   hide() {
     const modal = document.getElementById('authModal');
     if (modal) modal.style.display = 'none';
+
+    // Reveal the app shell (was hidden until auth confirmed)
+    const ids = ['mainContent','mobileHeader','mobileNav','sidebar'];
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = '';
+    });
   },
 
   switchMode(mode) {
@@ -659,13 +677,40 @@ const AuthUI = {
 
     // Sign-out (sidebar)
     document.getElementById('signOutBtn')
-      ?.addEventListener('click', () => auth.signOut());
+      ?.addEventListener('click', () => window.handleSignOut());
 
     // Account sign-out (account view)
     document.getElementById('acctSignOutBtn')
-      ?.addEventListener('click', () => auth.signOut());
+      ?.addEventListener('click', () => window.handleSignOut());
 
-    // Auth state: show screen or boot app
+    // If Supabase failed to init, show an offline notice and a dev-bypass
+    if (!supabase) {
+      const banner = document.getElementById('authError');
+      if (banner) {
+        banner.textContent = '⚠️ Backend not connected. Check config.js credentials.';
+        banner.style.display = 'block';
+      }
+      // Add a dev-bypass button so the UI is still reachable offline
+      const formInner = document.querySelector('.auth-form-inner');
+      if (formInner && !document.getElementById('devBypassBtn')) {
+        const bypassBtn = document.createElement('button');
+        bypassBtn.id        = 'devBypassBtn';
+        bypassBtn.type      = 'button';
+        bypassBtn.className = 'auth-google-btn';
+        bypassBtn.style.cssText = 'opacity:.6;font-size:.8rem;margin-top:.5rem';
+        bypassBtn.textContent = '🔧 Continue without account (dev mode)';
+        bypassBtn.addEventListener('click', () => {
+          document.getElementById('authModal').style.display = 'none';
+          const ids = ['mainContent','mobileHeader','mobileNav','sidebar'];
+          ids.forEach(id => { const el = document.getElementById(id); if(el) el.style.display=''; });
+          if (typeof comemos_boot === 'function') comemos_boot(null);
+        });
+        formInner.appendChild(bypassBtn);
+      }
+      return;
+    }
+
+    // Auth state: show auth screen or boot app
     auth.onAuthChange(async (session) => {
       if (session) {
         this.hide();
