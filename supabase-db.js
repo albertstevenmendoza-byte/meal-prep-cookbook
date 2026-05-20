@@ -49,7 +49,7 @@ async function currentUser() {
    Each function mirrors the original signature so no call-sites change.
    ═══════════════════════════════════════════════════════════════════ */
 
-const db = {
+const _supabaseDbImpl = {
 
   // ── Profiles ──────────────────────────────────────────────────────
   async saveProfile(p) {
@@ -433,6 +433,10 @@ const db = {
   },
 
 };
+
+// Expose so script.js can detect and use this instead of its
+// localStorage fallback — resolves the const-db naming conflict.
+window._supabaseDb = _supabaseDbImpl;
 
 /* ═══════════════════════════════════════════════════════════════════
    §D  AUTH FUNCTIONS
