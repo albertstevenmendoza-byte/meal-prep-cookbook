@@ -3163,14 +3163,64 @@ async function comemos_boot(sbUser) {
   );
 }
 
-// Fallback: if supabase-db.js is NOT loaded (local dev / offline),
-// boot immediately from localStorage as before.
+// ── BOOT ─────────────────────────────────────────────────────────────
+// The auth screen is visible by default (see index.html).
+// AuthUI.hide() reveals the app after a session is confirmed.
+// If supabase-db.js never loaded, we fall back to dev mode.
 document.addEventListener('DOMContentLoaded', () => {
-  if (typeof AuthUI === 'undefined') {
-    // No Supabase — run directly (dev mode)
-    comemos_boot(null);
-  } else {
-    // Supabase present — AuthUI.init() will call comemos_boot after sign-in
+  if (typeof AuthUI !== 'undefined') {
+    // Supabase is available — AuthUI drives the show/hide cycle
     AuthUI.init();
+  } else {
+    // supabase-db.js missing or failed entirely — boot in dev mode
+    const authModal = document.getElementById('authModal');
+    if (authModal) {
+      // Show a clear explanation and a bypass button
+      const banner = document.createElement('div');
+      banner.className = 'auth-banner auth-error';
+      banner.style.margin = '0 0 .75rem';
+      banner.textContent = '⚠️ Supabase not loaded. Running in offline dev mode.';
+      const inner = authModal.querySelector('.auth-form-inner');
+      if (inner) inner.prepend(banner);
+
+      const bypassBtn = document.createElement('button');
+      bypassBtn.className = 'auth-google-btn';
+      bypassBtn.style.cssText = 'margin-top:.5rem;opacity:.7;font-size:.82rem';
+      bypassBtn.textContent = '🔧 Enter app (dev mode)';
+      bypassBtn.addEventListener('click', () => {
+        authModal.style.display = 'none';
+        ['mainContent','mobileHeader','mobileNav','sidebar'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.style.display = '';
+        });
+        comemos_boot(null);
+      });
+      if (inner) inner.appendChild(bypassBtn);
+    }
   }
 });
+
+// ── SIGN OUT — wired globally so it works regardless of Supabase state ──
+// Called from sidebar button, account view button, or any sign-out trigger.
+window.handleSignOut = async function() {
+  try {
+    if (typeof auth !== 'undefined' && auth.signOut) {
+      await auth.signOut();   // triggers onAuthChange → shows auth screen
+    }
+  } catch (e) {
+    console.warn('Sign out error:', e);
+  }
+  // Fallback: clear storage and reload
+  localStorage.removeItem('comemos_profile');
+  localStorage.removeItem('comemos_plan');
+  localStorage.removeItem('comemos_checked');
+  localStorage.removeItem('comemos_posts');
+  localStorage.removeItem('comemos_theme');
+  // Re-show auth screen without a full reload
+  const authModal = document.getElementById('authModal');
+  if (authModal) authModal.style.display = 'flex';
+  ['mainContent','mobileHeader','mobileNav','sidebar'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+};
