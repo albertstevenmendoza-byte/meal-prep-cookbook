@@ -303,14 +303,14 @@ const MOCK_USERS = [
 
 // Gradient themes for food placeholder images
 const POST_GRADIENTS = [
-  'linear-gradient(135deg, #050e05 0%, #0a3a0a 50%, #0e280e 100%)',  // deep forest
-  'linear-gradient(135deg, #0a1e0a 0%, #1a6820 50%, #0a3a10 100%)',  // jungle green
-  'linear-gradient(135deg, #081408 0%, #286028 50%, #0a2808 100%)',  // dark moss
-  'linear-gradient(135deg, #101010 0%, #284820 50%, #101a10 100%)',  // midnight green
-  'linear-gradient(135deg, #0a2010 0%, #50a820 50%, #184810 100%)',  // lime forest
-  'linear-gradient(135deg, #200808 0%, #802020 50%, #400808 100%)',  // contrast crimson
-  'linear-gradient(135deg, #0a1808 0%, #40a820 50%, #085808 100%)',  // electric sage
-  'linear-gradient(135deg, #101808 0%, #608820 50%, #284808 100%)',  // olive canopy
+  'linear-gradient(135deg, #1a0a04 0%, #4a2010 50%, #2a1008 100%)',  // dark mahogany
+  'linear-gradient(135deg, #2a0804 0%, #c04820 50%, #601008 100%)',  // chili red
+  'linear-gradient(135deg, #1a0e04 0%, #c07020 50%, #604008 100%)',  // marigold
+  'linear-gradient(135deg, #1a0a08 0%, #8a2808 50%, #401008 100%)',  // deep clay
+  'linear-gradient(135deg, #081408 0%, #3a7a20 50%, #1a4008 100%)',  // verde
+  'linear-gradient(135deg, #180818 0%, #8a2868 50%, #401028 100%)',  // tamarind
+  'linear-gradient(135deg, #1a0804 0%, #e06020 50%, #801808 100%)',  // sunset orange
+  'linear-gradient(135deg, #100808 0%, #504020 50%, #281808 100%)',  // dark mole
 ];
 
 const MOCK_POSTS = [
@@ -1984,7 +1984,7 @@ const NATIVE_ADS = [
     id: 'ad-1', is_ad: true, type: 'ad', user_id: 'ad-brand-1',
     advertiser: 'MealKitPro', ad_avatar_initial: 'M', ad_avatar_color: '#5a8a6a',
     content: 'Stop spending your whole Sunday cooking. MealKitPro delivers pre-portioned, macro-labeled ingredients to your door every Friday. Ready in under 20 minutes — with full macro tracking included.',
-    image_gradient: 'linear-gradient(135deg, #081408 0%, #286028 100%)',
+    image_gradient: 'linear-gradient(135deg, #1a0e04 0%, #c07020 100%)',
     image_emoji: '🥡', tags: ['#sponsored','#mealkits'],
     cta_text: 'Get 30% Off First Box', cta_url: '#',
     why_factors: [{ label: 'You engage with meal prep content', pct: 90 }, { label: 'Location: meal kit delivery area', pct: 70 }, { label: 'Interest: high-protein', pct: 60 }],
@@ -1994,7 +1994,7 @@ const NATIVE_ADS = [
     id: 'ad-2', is_ad: true, type: 'ad', user_id: 'ad-brand-2',
     advertiser: 'MacroScale Pro', ad_avatar_initial: 'S', ad_avatar_color: '#d4a853',
     content: 'The only kitchen scale built for serious meal preppers. Wi-Fi connected, syncs directly to your nutrition app, and tracks 47 macronutrients automatically. Zero manual entry.',
-    image_gradient: 'linear-gradient(135deg, #0a1808 0%, #40a820 100%)',
+    image_gradient: 'linear-gradient(135deg, #2a0804 0%, #c04820 100%)',
     image_emoji: '⚖️', tags: ['#sponsored','#kitchentools'],
     cta_text: 'Shop MacroScale Pro', cta_url: '#',
     why_factors: [{ label: 'You track macros and calories', pct: 95 }, { label: 'Interest: fitness equipment', pct: 55 }],
@@ -2105,12 +2105,12 @@ function updateCoinDisplay() {
    ═══════════════════════════════════════════════════════════════════ */
 
 const PRODUCTS = [
-  { id: 'pr-1', seller_id: 'u1', name: 'Meal Prep Container Set (7-pack)', desc: 'BPA-free, microwave-safe, divided compartments. Stackable.', price: 34.99, emoji: '🥡', gradient: 'linear-gradient(135deg,#081408,#286028)', category: 'containers', rating: 4.8, sales: 234 },
-  { id: 'pr-2', seller_id: 'u5', name: 'Weekly Macro Tracker Journal', desc: '52-week planner with macro targets, habit tracking, and weekly reflections.', price: 18.99, emoji: '📔', gradient: 'linear-gradient(135deg,#0a1808,#406828)', category: 'tools', rating: 4.7, sales: 156 },
-  { id: 'pr-3', seller_id: 'u3', name: 'Protein Power Bundle', desc: '3 lbs whey isolate + shaker + measuring spoons. Best-seller.', price: 59.99, emoji: '💪', gradient: 'linear-gradient(135deg,#101010,#284820)', category: 'supplements', rating: 4.9, sales: 891 },
-  { id: 'pr-4', seller_id: 'u6', name: 'Chef\'s Spice Blending Kit', desc: '12 hand-blended spice mixes designed for meal prep. No fillers.', price: 27.50, emoji: '🌶️', gradient: 'linear-gradient(135deg,#200808,#802020)', category: 'pantry', rating: 4.6, sales: 412 },
-  { id: 'pr-5', seller_id: 'u8', name: '7-Day Meal Kit Box', desc: 'Fresh, chef-prepped ingredients for 7 macro-matched dinners. Free delivery.', price: 89.00, emoji: '📦', gradient: 'linear-gradient(135deg,#051405,#1a6820)', category: 'meal-kits', rating: 4.5, sales: 1203 },
-  { id: 'pr-6', seller_id: 'u2', name: 'Portion Control Plate Set', desc: 'Color-coded sections for protein, carbs, fats, and veg.', price: 22.00, emoji: '🍽️', gradient: 'linear-gradient(135deg,#0a1808,#204820)', category: 'containers', rating: 4.4, sales: 88 },
+  { id: 'pr-1', seller_id: 'u1', name: 'Meal Prep Container Set (7-pack)', desc: 'BPA-free, microwave-safe, divided compartments. Stackable.', price: 34.99, emoji: '🥡', gradient: 'linear-gradient(135deg,#1a0a04,#4a2010)', category: 'containers', rating: 4.8, sales: 234 },
+  { id: 'pr-2', seller_id: 'u5', name: 'Weekly Macro Tracker Journal', desc: '52-week planner with macro targets, habit tracking, and weekly reflections.', price: 18.99, emoji: '📔', gradient: 'linear-gradient(135deg,#1a0e04,#c07020)', category: 'tools', rating: 4.7, sales: 156 },
+  { id: 'pr-3', seller_id: 'u3', name: 'Protein Power Bundle', desc: '3 lbs whey isolate + shaker + measuring spoons. Best-seller.', price: 59.99, emoji: '💪', gradient: 'linear-gradient(135deg,#2a0804,#c04820)', category: 'supplements', rating: 4.9, sales: 891 },
+  { id: 'pr-4', seller_id: 'u6', name: 'Chef\'s Spice Blending Kit', desc: '12 hand-blended spice mixes designed for meal prep. No fillers.', price: 27.50, emoji: '🌶️', gradient: 'linear-gradient(135deg,#180818,#8a2868)', category: 'pantry', rating: 4.6, sales: 412 },
+  { id: 'pr-5', seller_id: 'u8', name: '7-Day Meal Kit Box', desc: 'Fresh, chef-prepped ingredients for 7 macro-matched dinners. Free delivery.', price: 89.00, emoji: '📦', gradient: 'linear-gradient(135deg,#1a0804,#e06020)', category: 'meal-kits', rating: 4.5, sales: 1203 },
+  { id: 'pr-6', seller_id: 'u2', name: 'Portion Control Plate Set', desc: 'Color-coded sections for protein, carbs, fats, and veg.', price: 22.00, emoji: '🍽️', gradient: 'linear-gradient(135deg,#100808,#504020)', category: 'containers', rating: 4.4, sales: 88 },
 ];
 
 const CART = { items: {} }; // { product_id: { product, qty } }
@@ -2640,7 +2640,7 @@ window.useQuickTemplate = function(idx) {
 
 const LIVE_STREAMS = [
   { id: 'live-1', user_id: 'u6', title: 'Meal prep with me — 3 hours of batch cooking', gradient: 'linear-gradient(135deg,#1a3a20,#3a7a4a)', emoji: '🥦', viewers: 234 },
-  { id: 'live-2', user_id: 'u3', title: 'Q&A: How I hit 200g protein every day', gradient: 'linear-gradient(135deg,#200808,#802020)', emoji: '💪', viewers: 891 },
+  { id: 'live-2', user_id: 'u3', title: 'Q&A: How I hit 200g protein every day', gradient: 'linear-gradient(135deg,#180818,#8a2868)', emoji: '💪', viewers: 891 },
 ];
 
 function renderLiveNowStrip() {
@@ -3159,7 +3159,7 @@ async function comemos_boot(sbUser) {
 
   console.log(
     '%c🍽  COMEMOS — Ready  |  Supabase connected',
-    'color:#4aaa5a;font-family:serif;font-size:1.1em;font-weight:bold'
+    'color:#f0a840;font-family:serif;font-size:1.1em;font-weight:bold'
   );
 }
 
