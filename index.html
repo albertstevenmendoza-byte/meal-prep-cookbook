@@ -378,7 +378,7 @@
               <div class="username-input-wrap">
                 <span class="username-at">@</span>
                 <input type="text" id="acctUsername" placeholder="yourhandle"
-                       pattern="[a-z0-9_]{3,24}" autocomplete="off" />
+                       autocomplete="off" />
               </div>
               <span class="auth-hint" id="usernameHint"></span>
             </div>
@@ -574,7 +574,7 @@
         </div>
 
         <!-- SIGN IN -->
-        <form class="auth-form" id="authSignIn">
+        <form class="auth-form" id="authSignIn" novalidate>
           <div class="auth-field">
             <label for="siEmail">Email address</label>
             <input type="email" id="siEmail" placeholder="you@example.com" autocomplete="email" required />
@@ -594,7 +594,7 @@
         </form>
 
         <!-- SIGN UP -->
-        <form class="auth-form" id="authSignUp" style="display:none">
+        <form class="auth-form" id="authSignUp" novalidate style="display:none">
           <div class="auth-field-row-2">
             <div class="auth-field">
               <label for="suName">Full name</label>
@@ -604,7 +604,7 @@
               <label for="suUsername">Username <span class="auth-optional">optional</span></label>
               <div class="username-input-wrap">
                 <span class="username-at">@</span>
-                <input type="text" id="suUsername" placeholder="yourhandle" autocomplete="off" pattern="[a-z0-9_]{3,24}" />
+                <input type="text" id="suUsername" placeholder="yourhandle" autocomplete="off" />
               </div>
             </div>
           </div>
