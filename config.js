@@ -14,8 +14,8 @@
 const COMEMOS_CONFIG = {
 
   // ── Supabase ─────────────────────────────────────────────────────
-  SUPABASE_URL:      'https://YOUR_PROJECT_ID.supabase.co',
-  SUPABASE_ANON_KEY: 'YOUR_ANON_KEY_HERE',
+  SUPABASE_URL:      'https://zjonybedanmdussrrtmw.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpqb255YmVkYW5tZHVzc3JydG13Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyOTk0OTQsImV4cCI6MjA5NDg3NTQ5NH0.vqyP0G68jDiL9MBHNaEwagffoD1bd8txcC0NbCKPnm8',
 
   // ── Feature flags (toggle for beta testing) ───────────────────────
   FEATURES: {
