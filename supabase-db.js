@@ -351,6 +351,78 @@ const db = {
       .upsert({ user_id: user.id, tier, started_at: new Date().toISOString() });
   },
 
+  // ── Avatar upload ──────────────────────────────────────────────
+  async uploadAvatar(file) {
+    const user = await currentUser();
+    if (!user) return { url: null, error: 'Not authenticated' };
+
+    const ext      = file.name.split('.').pop().toLowerCase();
+    const filePath = `${user.id}/avatar.${ext}`;
+
+    // Remove old avatar first (ignore errors if it doesn't exist)
+    await supabase.storage.from('avatars').remove([filePath]);
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: file.type,
+      });
+
+    if (uploadError) return { url: null, error: uploadError.message };
+
+    // Get the permanent public URL
+    const { data } = supabase.storage
+      .from('avatars')
+      .getPublicUrl(filePath);
+
+    // Cache-bust so the browser shows the new image immediately
+    const url = `${data.publicUrl}?t=${Date.now()}`;
+
+    // Save URL to profile
+    await supabase.from('profiles')
+      .update({ avatar_url: url, updated_at: new Date().toISOString() })
+      .eq('id', user.id);
+
+    return { url, error: null };
+  },
+
+  // ── Update name + username ───────────────────────────────────────
+  async updateProfileFields({ name, username }) {
+    const user = await currentUser();
+    if (!user) return { error: 'Not authenticated' };
+
+    // Check username is not taken by someone else
+    if (username) {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', username.toLowerCase())
+        .neq('id', user.id)
+        .maybeSingle();
+
+      if (existing) return { error: 'That username is already taken.' };
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        name,
+        username:   username ? username.toLowerCase() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', user.id);
+
+    return { error: error?.message || null };
+  },
+
+  // ── Change password ──────────────────────────────────────────────
+  async changePassword(newPassword) {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { error: error?.message || null };
+  },
+
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -508,14 +580,21 @@ const AuthUI = {
     }
 
     AuthUI.setLoading(btn, true);
-    const { error } = await auth.signUp(email, password, name);
+    const username = document.getElementById('suUsername')?.value.trim().toLowerCase() || '';
+    const { data: signUpData, error } = await auth.signUp(email, password, name);
     AuthUI.setLoading(btn, false);
 
     if (error) {
       AuthUI.setError(error.message || 'Sign up failed. Try again.');
     } else {
+      // Save username if provided (profile row created by trigger first)
+      if (username && signUpData?.user?.id) {
+        setTimeout(async () => {
+          await supabase.from('profiles').update({ username })
+            .eq('id', signUpData.user.id);
+        }, 1500); // small delay for trigger to run
+      }
       AuthUI.setError('');
-      // Show confirmation message if email confirmation is enabled
       const confirmMsg = document.getElementById('authConfirmMsg');
       if (confirmMsg) confirmMsg.style.display = 'block';
     }
