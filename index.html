@@ -121,13 +121,13 @@
         <div class="topbar-actions"><div class="unit-pill-group" id="globalUnitGroup"><button class="unit-pill active" data-unit="g" data-group="global">g</button><button class="unit-pill" data-unit="oz" data-group="global">oz</button><button class="unit-pill" data-unit="cups" data-group="global">cups</button></div><button class="btn-outline" id="regenBtn">↺ Regenerate</button></div>
       </div>
       <div class="macro-ribbon" id="macroRibbon">
-        <div class="mrib-item"><span class="mrib-label">Calories / day</span><span class="mrib-val" id="mCal">—</span></div>
+        <div class="mrib-item"><span class="mrib-label">Cal / day</span><span class="mrib-val" id="mCal">—</span></div>
         <div class="mrib-sep"></div>
         <div class="mrib-item"><span class="mrib-label">Protein</span><span class="mrib-val" id="mPro">—<small>g</small></span></div>
         <div class="mrib-item"><span class="mrib-label">Carbs</span><span class="mrib-val" id="mCarb">—<small>g</small></span></div>
         <div class="mrib-item"><span class="mrib-label">Fat</span><span class="mrib-val" id="mFat">—<small>g</small></span></div>
         <div class="mrib-sep"></div>
-        <div class="mrib-item mrib-gold"><span class="mrib-label">Prep sessions</span><span class="mrib-val" id="mPrep">—</span></div>
+        <div class="mrib-item mrib-gold"><span class="mrib-label">Prep</span><span class="mrib-val" id="mPrep">—</span></div>
       </div>
       <div class="day-strip" id="dayStrip"></div>
       <div class="meals-area" id="mealsArea"></div>
@@ -209,8 +209,8 @@
                 <p style="font-size:.78rem;color:var(--ink-muted);margin-top:.25rem">🌟 Live streaming requires Creator tier. <button class="inline-upgrade-btn" onclick="openSubModal()">Upgrade</button></p>
               </div>
               <div class="composer-image-row">
-                <label class="composer-img-btn" for="composerImgInput"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Image URL</label>
-                <input type="text" id="composerImgInput" placeholder="https://…" class="composer-field composer-img-url" />
+                <button type="button" class="composer-img-btn" id="composerImgToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg> Add photo</button>
+                <input type="text" id="composerImgInput" placeholder="Paste image URL…" class="composer-field composer-img-url" style="display:none" />
                 <button class="btn-gold composer-submit" id="composerSubmit">Publish</button>
               </div>
             </div>
