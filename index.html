@@ -12,7 +12,7 @@
 <body>
 
   <!-- SIDEBAR -->
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar" id="sidebar" style="display:none">
     <div class="sidebar-logo">
       <span class="logo-glyph">𝒞</span>
       <span class="logo-word">Comemos</span>
@@ -44,7 +44,7 @@
         <span class="sidebar-goal" id="sidebarGoal">—</span>
       </div>
     </div>
-    <button class="btn-ghost" id="signOutBtn" style="margin:.25rem 1.25rem .25rem;font-size:.75rem;min-height:36px;justify-content:center">Sign Out</button>
+    <button class="btn-ghost" id="signOutBtn" onclick="handleSignOut()" style="margin:.25rem 1.25rem .25rem;font-size:.75rem;min-height:36px;justify-content:center">Sign Out</button>
     <button class="sidebar-theme-toggle" id="themeToggle">
       <svg id="themeIconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
       <svg id="themeIconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -52,7 +52,7 @@
   </aside>
 
   <!-- MOBILE HEADER -->
-  <header class="mobile-header">
+  <header class="mobile-header" id="mobileHeader" style="display:none">
     <div class="mobile-logo"><span class="logo-glyph">𝒞</span><span class="logo-word">Comemos</span></div>
     <div style="display:flex;gap:.5rem;align-items:center">
       <span class="coin-icon">🪙</span><span id="mobileCoinCount">150</span>
@@ -61,7 +61,7 @@
   </header>
 
   <!-- MAIN CONTENT -->
-  <main class="main-content" id="mainContent">
+  <main class="main-content" id="mainContent" style="display:none">
 
     <!-- VIEW: SETUP -->
     <section class="view active" id="view-onboarding">
@@ -409,7 +409,7 @@
 
           <div class="account-actions">
             <button class="btn-gold" id="acctSaveBtn">Save changes</button>
-            <button class="btn-outline" id="acctSignOutBtn">Sign out</button>
+            <button class="btn-outline" id="acctSignOutBtn" onclick="handleSignOut()">Sign out</button>
           </div>
 
           <div class="account-feedback" id="acctFeedback" style="display:none"></div>
@@ -422,7 +422,7 @@
   </main>
 
   <!-- MOBILE NAV -->
-  <nav class="mobile-nav" id="mobileNav">
+  <nav class="mobile-nav" id="mobileNav" style="display:none">
     <button class="mnav-item active" data-view="onboarding"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>Setup</span></button>
     <button class="mnav-item" data-view="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Plan</span></button>
     <button class="mnav-item mnav-community" data-view="community"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="20" height="20"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg><span>Community</span></button>
@@ -513,7 +513,7 @@
   </div>
 
   <!-- AUTH SCREEN ───────────────────────────────────────────── -->
-  <div class="auth-screen" id="authModal" style="display:none">
+  <div class="auth-screen" id="authModal">
 
     <!-- Left: Brand panel -->
     <div class="auth-brand-panel">
