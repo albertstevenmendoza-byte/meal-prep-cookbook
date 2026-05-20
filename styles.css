@@ -1,46 +1,46 @@
 /* ╔════════════════════════════════════════════════════════════════╗
    ║  COMEMOS — styles.css                                         ║
-   ║  Aesthetic: "Culinary Editorial"                               ║
-   ║  Palette: Deep charcoal · warm cream · saffron gold · terra   ║
+   ║  Aesthetic: "Ocean Drift"                                      ║
+   ║  Palette: Deep navy · icy white · electric teal · coral       ║
    ║  Fonts: Playfair Display + Plus Jakarta Sans                   ║
    ╚════════════════════════════════════════════════════════════════╝ */
 
 /* ─── DESIGN TOKENS ──────────────────────────────────────────────── */
 :root {
-  /* Dark (default) */
-  --bg:           #0d0c0a;
-  --bg-1:         #161411;
-  --bg-2:         #1e1c18;
-  --bg-3:         #272420;
-  --bg-4:         #302d28;
+  /* Dark — Ocean Drift */
+  --bg:           #050e14;   /* deep ocean night         */
+  --bg-1:         #081620;   /* sidebar / header         */
+  --bg-2:         #0c1e2e;   /* card surface             */
+  --bg-3:         #102840;   /* input / raised surface   */
+  --bg-4:         #163450;   /* hover / active surface   */
 
-  --ink:          #f0ead9;
-  --ink-mid:      #b8b0a0;
-  --ink-muted:    #7a7368;
-  --ink-faint:    #3d3a34;
+  --ink:          #d0edf8;   /* icy white                */
+  --ink-mid:      #82b8d4;   /* secondary text           */
+  --ink-muted:    #4a7a98;   /* muted / labels           */
+  --ink-faint:    #1e4060;   /* very faint / dividers    */
 
-  --gold:         #d4a853;
-  --gold-dk:      #a07a30;
-  --gold-lt:      #f5e4b8;
-  --gold-glow:    rgba(212,168,83,.18);
+  --gold:         #38cfe0;   /* primary accent: cyan     */
+  --gold-dk:      #1898aa;   /* darker cyan              */
+  --gold-lt:      #b8f0f8;   /* light cyan (text on dark)*/
+  --gold-glow:    rgba(56,207,224,.16);
 
-  --terra:        #c0614a;
-  --terra-lt:     #f2d8d2;
+  --terra:        #e06844;   /* warm coral contrast      */
+  --terra-lt:     #fde0d8;
 
-  --sage:         #5a8a6a;
-  --sage-lt:      #d4e8da;
+  --sage:         #38b890;   /* sea-green complement     */
+  --sage-lt:      #b8ead8;
 
-  --slate:        #3a5a7a;
-  --slate-lt:     #d0e0f0;
+  --slate:        #4898d8;   /* ocean-blue               */
+  --slate-lt:     #b8dcf8;
 
-  --border:       rgba(240,234,217,.08);
-  --border-mid:   rgba(240,234,217,.14);
-  --border-hard:  rgba(240,234,217,.22);
+  --border:       rgba(208,237,248,.08);
+  --border-mid:   rgba(208,237,248,.14);
+  --border-hard:  rgba(208,237,248,.24);
 
-  --shadow-sm:    0 1px 4px rgba(0,0,0,.35);
-  --shadow-md:    0 4px 20px rgba(0,0,0,.5);
-  --shadow-lg:    0 16px 48px rgba(0,0,0,.65);
-  --shadow-gold:  0 4px 24px rgba(212,168,83,.22);
+  --shadow-sm:    0 1px 4px rgba(0,0,0,.4);
+  --shadow-md:    0 4px 20px rgba(0,0,0,.55);
+  --shadow-lg:    0 16px 48px rgba(0,0,0,.70);
+  --shadow-gold:  0 4px 24px rgba(56,207,224,.25);
 
   --r-sm: 8px;
   --r-md: 14px;
@@ -60,36 +60,37 @@
 
 /* Light theme override */
 [data-theme="light"] {
-  --bg:           #f4f1eb;
-  --bg-1:         #edeae2;
-  --bg-2:         #e6e2d8;
-  --bg-3:         #ddd9ce;
-  --bg-4:         #d5d0c4;
+  /* Light — Ocean Drift (cool coastal morning) */
+  --bg:           #edf6fb;   /* pale sky                 */
+  --bg-1:         #e0f0f8;   /* sidebar / header         */
+  --bg-2:         #ffffff;   /* card surface             */
+  --bg-3:         #d4ecf6;   /* input surface            */
+  --bg-4:         #c4e4f2;   /* hover surface            */
 
-  --ink:          #1a1814;
-  --ink-mid:      #4a453c;
-  --ink-muted:    #8a8278;
-  --ink-faint:    #c5bfb4;
+  --ink:          #041828;   /* deep navy text           */
+  --ink-mid:      #1a4a68;   /* secondary text           */
+  --ink-muted:    #3a7898;   /* muted labels             */
+  --ink-faint:    #88c0d8;   /* faint / dividers         */
 
-  --gold:         #a07a30;
-  --gold-dk:      #7a5a1c;
-  --gold-lt:      #3a2800;
-  --gold-glow:    rgba(160,122,48,.12);
+  --gold:         #0898b0;   /* primary accent (dark teal for contrast) */
+  --gold-dk:      #066878;
+  --gold-lt:      #022830;
+  --gold-glow:    rgba(8,152,176,.12);
 
-  --terra:        #b85c38;
-  --terra-lt:     #3a1a10;
+  --terra:        #c04828;   /* coral on light           */
+  --terra-lt:     #280c04;
 
-  --sage:         #2d5a3d;
-  --sage-lt:      #162a1e;
+  --sage:         #1a8860;   /* sea-green on light       */
+  --sage-lt:      #082418;
 
-  --border:       rgba(26,24,20,.1);
-  --border-mid:   rgba(26,24,20,.16);
-  --border-hard:  rgba(26,24,20,.26);
+  --border:       rgba(4,24,40,.10);
+  --border-mid:   rgba(4,24,40,.16);
+  --border-hard:  rgba(4,24,40,.26);
 
-  --shadow-sm:    0 1px 4px rgba(0,0,0,.08);
-  --shadow-md:    0 4px 20px rgba(0,0,0,.12);
-  --shadow-lg:    0 16px 48px rgba(0,0,0,.18);
-  --shadow-gold:  0 4px 24px rgba(160,122,48,.18);
+  --shadow-sm:    0 1px 4px rgba(0,0,0,.07);
+  --shadow-md:    0 4px 20px rgba(0,0,0,.10);
+  --shadow-lg:    0 16px 48px rgba(0,0,0,.15);
+  --shadow-gold:  0 4px 24px rgba(8,152,176,.18);
 }
 
 /* ─── BASE RESET ─────────────────────────────────────────────────── */
