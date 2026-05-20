@@ -725,11 +725,39 @@ async function handleGenerate() {
 }
 
 function updateSidebarProfile() {
-  const { name, goal } = STATE.profile;
-  document.getElementById('sidebarAvatar').textContent   = name ? name[0].toUpperCase() : '?';
-  document.getElementById('sidebarUsername').textContent  = name || 'Set up profile';
+  const { name, goal, avatar_url } = STATE.profile;
+  const initial = name ? name[0].toUpperCase() : '?';
+
+  // Sidebar avatar: show photo or initial
+  const sidebarAvatar = document.getElementById('sidebarAvatar');
+  const sidebarInitEl = document.getElementById('sidebarAvatarInitial');
+  if (sidebarAvatar) {
+    if (avatar_url) {
+      sidebarInitEl && (sidebarInitEl.style.display = 'none');
+      let img = sidebarAvatar.querySelector('img');
+      if (!img) { img = document.createElement('img'); sidebarAvatar.appendChild(img); }
+      img.src = avatar_url;
+      img.alt = name || 'Avatar';
+    } else {
+      sidebarInitEl && (sidebarInitEl.style.display = '');
+      sidebarInitEl && (sidebarInitEl.textContent = initial);
+      const img = sidebarAvatar.querySelector('img');
+      if (img) img.remove();
+    }
+  }
+
+  document.getElementById('sidebarUsername').textContent  = STATE.profile.username ? '@' + STATE.profile.username : (name || 'Set up profile');
   document.getElementById('sidebarGoal').textContent      = goal || '—';
-  document.getElementById('composerAvatar').textContent   = name ? name[0].toUpperCase() : '?';
+
+  // Composer avatar
+  const composerAvatar = document.getElementById('composerAvatar');
+  if (composerAvatar) {
+    if (avatar_url) {
+      composerAvatar.innerHTML = `<img src="${avatar_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" alt="avatar" />`;
+    } else {
+      composerAvatar.textContent = initial;
+    }
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -2889,6 +2917,7 @@ const _origSwitchView = switchView;
 window.switchView = function(id) {
   _origSwitchView(id);
   if (id === 'plan' && !STATE.plan) { renderPlanEmptyState(); }
+  if (id === 'account') { initAccountView(); }
   if (id === 'messages')  { renderConvList(); }
   if (id === 'creator')   { renderCreatorDashboard(); }
   if (id === 'shop')      { renderProducts(shopFilter); renderCart(); }
@@ -2899,6 +2928,167 @@ window.switchView = function(id) {
    UNIFIED INITIALISER  (replaces duplicate function boot + 2nd listener)
    One DOMContentLoaded, called exactly once, no duplicate declarations.
    ═══════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   ACCOUNT VIEW
+   ═══════════════════════════════════════════════════════════════════ */
+
+function initAccountView() {
+  // Populate fields from STATE.profile
+  const p = STATE.profile;
+  const el = id => document.getElementById(id);
+
+  if (el('acctDisplayName')) el('acctDisplayName').value = p.name      || '';
+  if (el('acctUsername'))    el('acctUsername').value    = p.username   || '';
+  if (el('acctEmail'))       el('acctEmail').textContent = STATE._authEmail || '—';
+
+  // Account avatar
+  const acctAvatar  = el('accountAvatar');
+  const acctInitial = el('accountAvatarInitial');
+  const acctImg     = el('accountAvatarImg');
+  if (acctAvatar && p.avatar_url) {
+    acctInitial && (acctInitial.style.display = 'none');
+    acctImg && (acctImg.src = p.avatar_url) && (acctImg.style.display = 'block');
+  } else if (acctInitial) {
+    acctInitial.textContent = (p.name || '?')[0].toUpperCase();
+  }
+
+  // Avatar file picker
+  el('avatarFileInput')?.addEventListener('change', handleAvatarUpload);
+
+  // Live username validation
+  const usernameInput = el('acctUsername');
+  const usernameHint  = el('usernameHint');
+  if (usernameInput && usernameHint) {
+    usernameInput.addEventListener('input', () => {
+      const val = usernameInput.value.trim().toLowerCase();
+      if (!val) { usernameHint.textContent = ''; usernameHint.className = 'auth-hint'; return; }
+      if (/^[a-z0-9_]{3,24}$/.test(val)) {
+        usernameHint.textContent = `@${val} looks good ✓`;
+        usernameHint.className   = 'auth-hint ok';
+      } else {
+        usernameHint.textContent = '3–24 chars · lowercase, numbers, underscores only';
+        usernameHint.className   = 'auth-hint error';
+      }
+    });
+  }
+
+  // Save button
+  el('acctSaveBtn')?.addEventListener('click', handleAccountSave);
+
+  // Sign out
+  el('acctSignOutBtn')?.addEventListener('click', () => auth.signOut());
+}
+
+async function handleAvatarUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  if (file.size > 5 * 1024 * 1024) {
+    showAccountFeedback('Image must be under 5 MB.', 'error'); return;
+  }
+
+  // Show preview immediately
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const acctImg    = document.getElementById('accountAvatarImg');
+    const acctInitEl = document.getElementById('accountAvatarInitial');
+    const sidebarAv  = document.getElementById('sidebarAvatar');
+    if (acctImg)    { acctImg.src = ev.target.result; acctImg.style.display = 'block'; }
+    if (acctInitEl)   acctInitEl.style.display = 'none';
+    if (sidebarAv) {
+      let img = sidebarAv.querySelector('img');
+      if (!img) { img = document.createElement('img'); sidebarAv.appendChild(img); }
+      img.src = ev.target.result;
+      img.alt = 'avatar';
+      document.getElementById('sidebarAvatarInitial')?.style && (document.getElementById('sidebarAvatarInitial').style.display = 'none');
+    }
+    const composerAv = document.getElementById('composerAvatar');
+    if (composerAv) composerAv.innerHTML = `<img src="${ev.target.result}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" alt="avatar" />`;
+  };
+  reader.readAsDataURL(file);
+
+  // Upload to Supabase
+  const progress = document.getElementById('avatarUploadProgress');
+  if (progress) progress.style.display = 'flex';
+
+  const { url, error } = await db.uploadAvatar(file);
+
+  if (progress) progress.style.display = 'none';
+
+  if (error) {
+    showAccountFeedback('Upload failed: ' + error, 'error');
+  } else {
+    STATE.profile.avatar_url = url;
+    updateSidebarProfile();
+    showAccountFeedback('Profile photo updated ✓', 'ok');
+  }
+}
+
+async function handleAccountSave() {
+  const name     = document.getElementById('acctDisplayName')?.value.trim() || '';
+  const username = document.getElementById('acctUsername')?.value.trim().toLowerCase() || '';
+  const newPass  = document.getElementById('acctNewPassword')?.value || '';
+  const confPass = document.getElementById('acctConfirmPassword')?.value || '';
+
+  // Validate username format
+  if (username && !/^[a-z0-9_]{3,24}$/.test(username)) {
+    showAccountFeedback('Username must be 3–24 chars: lowercase letters, numbers, underscores.', 'error');
+    return;
+  }
+
+  // Validate passwords match
+  if (newPass && newPass !== confPass) {
+    showAccountFeedback('Passwords do not match.', 'error'); return;
+  }
+  if (newPass && newPass.length < 8) {
+    showAccountFeedback('Password must be at least 8 characters.', 'error'); return;
+  }
+
+  const btn = document.getElementById('acctSaveBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  let errors = [];
+
+  // Save name + username
+  if (typeof db.updateProfileFields === 'function') {
+    const { error } = await db.updateProfileFields({ name, username });
+    if (error) errors.push(error);
+    else {
+      STATE.profile.name     = name;
+      STATE.profile.username = username;
+      updateSidebarProfile();
+    }
+  }
+
+  // Change password if provided
+  if (newPass && !errors.length) {
+    const { error } = await db.changePassword(newPass);
+    if (error) errors.push(error);
+    else {
+      document.getElementById('acctNewPassword').value    = '';
+      document.getElementById('acctConfirmPassword').value = '';
+    }
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Save changes'; }
+
+  if (errors.length) {
+    showAccountFeedback(errors.join(' · '), 'error');
+  } else {
+    showAccountFeedback('Changes saved ✓', 'ok');
+  }
+}
+
+function showAccountFeedback(msg, type) {
+  const el = document.getElementById('acctFeedback');
+  if (!el) return;
+  el.textContent  = msg;
+  el.className    = `account-feedback ${type}`;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
 // comemos_boot is called by supabase-db.js AuthUI.onAuthChange after sign-in.
 // It receives the Supabase user object so we can pre-fill the profile.
 async function comemos_boot(sbUser) {
@@ -2960,6 +3150,9 @@ async function comemos_boot(sbUser) {
       updateCoinDisplay();
     }
   } catch(e) {}
+
+  // Store auth email for account view
+  if (sbUser?.email) STATE._authEmail = sbUser.email;
 
   // Enable real-time subscriptions
   if (typeof enableRealtime === 'function') enableRealtime();
