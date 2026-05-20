@@ -1553,7 +1553,7 @@ async function boot() {
   );
 }
 
-document.addEventListener('DOMContentLoaded', boot);
+// Boot is called once from the unified initialiser below (see end of file)
 
 /* ═══════════════════════════════════════════════════════════════════
    §20  FEED ALGORITHM ENGINE
@@ -2862,23 +2862,27 @@ window.switchView = function(id) {
   if (id === 'community') { renderQuickCreateStrip(); renderLiveNowStrip(); renderSidebarWidgets(); }
 };
 
-// Patch the existing boot to add new inits
-const _origBoot = boot;
-async function boot() {
-  // Run original boot (theme, restoreState, initOnboarding, initComposer, initGlobalEvents)
-  await _origBoot();
+/* ═══════════════════════════════════════════════════════════════════
+   UNIFIED INITIALISER  (replaces duplicate function boot + 2nd listener)
+   One DOMContentLoaded, called exactly once, no duplicate declarations.
+   ═══════════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', async function mise_init() {
+  // ── Core sequence (was §19 boot) ──────────────────────────────
+  initTheme();
+  await restoreState();
+  initOnboarding();
+  initComposer();
+  initGlobalEvents();
 
-  // Initialize new modules
+  // ── Engagement Engine modules (§20-§32) ───────────────────────
   initMessagesView();
   initShopView();
   initAlgoControls();
   renderQuickCreateStrip();
   renderLiveNowStrip();
 
-  // Add Live tab to composer
-  document.getElementById('liveExtra')?.parentElement; // already in HTML
-
-  console.log('%c🚀 MISE — Engagement Engine Active', 'color:#d4a853;font-weight:bold;font-size:1.1em');
-}
-
-document.addEventListener('DOMContentLoaded', boot);
+  console.log(
+    '%c🍽  MISE — Ready  |  Engagement Engine Active',
+    'color:#d4a853;font-family:serif;font-size:1.1em;font-weight:bold'
+  );
+});
