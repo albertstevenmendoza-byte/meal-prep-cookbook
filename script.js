@@ -3188,9 +3188,6 @@ async function comemos_boot(sbUser) {
   renderQuickCreateStrip();
   renderLiveNowStrip();
 
-  // ── Auth UI ───────────────────────────────────────────────────
-  if (typeof AuthUI !== 'undefined') AuthUI.init();
-
   // Load real posts from Supabase and merge with mock data fallback
   try {
     const livePosts = await db.loadPosts();
