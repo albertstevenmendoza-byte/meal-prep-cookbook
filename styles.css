@@ -1,46 +1,46 @@
 /* ╔════════════════════════════════════════════════════════════════╗
    ║  COMEMOS — styles.css                                         ║
-   ║  Aesthetic: "Midnight Garden"                                  ║
-   ║  Palette: Near-black green · pale mint · electric sage · amber ║
+   ║  Aesthetic: "La Cocina"                                        ║
+   ║  Palette: Deep mahogany · warm cream · marigold · chili red   ║
    ║  Fonts: Playfair Display + Plus Jakarta Sans                   ║
    ╚════════════════════════════════════════════════════════════════╝ */
 
 /* ─── DESIGN TOKENS ──────────────────────────────────────────────── */
 :root {
-  /* Dark — Midnight Garden */
-  --bg:           #080e08;   /* near-black forest floor  */
-  --bg-1:         #0c140c;   /* sidebar / header         */
-  --bg-2:         #101a10;   /* card surface             */
-  --bg-3:         #162416;   /* input / raised surface   */
-  --bg-4:         #1c2e1c;   /* hover / active surface   */
+  /* Dark — La Cocina */
+  --bg:           #1a0e0a;   /* deep mahogany night      */
+  --bg-1:         #1e1208;   /* sidebar / header         */
+  --bg-2:         #2a1810;   /* card surface             */
+  --bg-3:         #341e14;   /* input / raised surface   */
+  --bg-4:         #3e261a;   /* hover / active surface   */
 
-  --ink:          #e0f0e0;   /* pale garden mist         */
-  --ink-mid:      #90b890;   /* secondary text           */
-  --ink-muted:    #507850;   /* muted / labels           */
-  --ink-faint:    #2a3a2a;   /* very faint / dividers    */
+  --ink:          #f5e8d8;   /* warm parchment cream     */
+  --ink-mid:      #c8a890;   /* secondary text           */
+  --ink-muted:    #8a6050;   /* muted / labels           */
+  --ink-faint:    #4a2818;   /* very faint / dividers    */
 
-  --gold:         #4aaa5a;   /* primary accent: sage     */
-  --gold-dk:      #2a7a38;   /* darker sage              */
-  --gold-lt:      #b0e8b0;   /* light sage (text on dark)*/
-  --gold-glow:    rgba(74,170,90,.16);
+  --gold:         #f0a840;   /* primary accent: marigold */
+  --gold-dk:      #c07820;   /* darker amber             */
+  --gold-lt:      #fce8b8;   /* light amber              */
+  --gold-glow:    rgba(240,168,64,.16);
 
-  --terra:        #c07a40;   /* warm amber contrast      */
-  --terra-lt:     #f8e0c0;
+  --terra:        #e8623a;   /* chili red-orange         */
+  --terra-lt:     #fde0d0;
 
-  --sage:         #a0d050;   /* bright lime accent       */
-  --sage-lt:      #d0f090;
+  --sage:         #7aaa5a;   /* verde complement         */
+  --sage-lt:      #d0eac0;
 
-  --slate:        #4890c0;   /* cool blue complement     */
-  --slate-lt:     #b0d8f0;
+  --slate:        #5a6aaa;   /* cool blue complement     */
+  --slate-lt:     #c0c8f0;
 
-  --border:       rgba(224,240,224,.08);
-  --border-mid:   rgba(224,240,224,.14);
-  --border-hard:  rgba(224,240,224,.24);
+  --border:       rgba(245,232,216,.08);
+  --border-mid:   rgba(245,232,216,.14);
+  --border-hard:  rgba(245,232,216,.24);
 
-  --shadow-sm:    0 1px 4px rgba(0,0,0,.4);
-  --shadow-md:    0 4px 20px rgba(0,0,0,.55);
-  --shadow-lg:    0 16px 48px rgba(0,0,0,.70);
-  --shadow-gold:  0 4px 24px rgba(74,170,90,.25);
+  --shadow-sm:    0 1px 4px rgba(0,0,0,.45);
+  --shadow-md:    0 4px 20px rgba(0,0,0,.60);
+  --shadow-lg:    0 16px 48px rgba(0,0,0,.75);
+  --shadow-gold:  0 4px 24px rgba(240,168,64,.28);
 
   --r-sm: 8px;
   --r-md: 14px;
@@ -60,37 +60,37 @@
 
 /* Light theme override */
 [data-theme="light"] {
-  /* Light — Midnight Garden (garden morning) */
-  --bg:           #f0f8f0;   /* pale garden mist         */
-  --bg-1:         #e4f2e4;   /* sidebar / header         */
+  /* Light — La Cocina (mercado morning) */
+  --bg:           #fdf6ee;   /* warm parchment           */
+  --bg-1:         #f8ede0;   /* sidebar / header         */
   --bg-2:         #ffffff;   /* card surface             */
-  --bg-3:         #d8ecd8;   /* input surface            */
-  --bg-4:         #cce4cc;   /* hover surface            */
+  --bg-3:         #f2e4d0;   /* input surface            */
+  --bg-4:         #ecd8c0;   /* hover surface            */
 
-  --ink:          #081408;   /* deep forest text         */
-  --ink-mid:      #1a4a1a;   /* secondary text           */
-  --ink-muted:    #3a6a3a;   /* muted labels             */
-  --ink-faint:    #90b890;   /* faint / dividers         */
+  --ink:          #1a0a04;   /* deep brown text          */
+  --ink-mid:      #4a2010;   /* secondary text           */
+  --ink-muted:    #8a5030;   /* muted labels             */
+  --ink-faint:    #c8a888;   /* faint / dividers         */
 
-  --gold:         #2a7a38;   /* primary accent (dark sage for contrast) */
-  --gold-dk:      #1a5a28;
-  --gold-lt:      #082008;
-  --gold-glow:    rgba(42,122,56,.12);
+  --gold:         #b86810;   /* amber (dark for contrast)*/
+  --gold-dk:      #8a4e08;
+  --gold-lt:      #3a1800;
+  --gold-glow:    rgba(184,104,16,.12);
 
-  --terra:        #a05820;   /* amber on light           */
-  --terra-lt:     #280e00;
+  --terra:        #c04018;   /* chili on light           */
+  --terra-lt:     #340800;
 
-  --sage:         #608020;   /* olive on light           */
-  --sage-lt:      #182000;
+  --sage:         #4a7a18;   /* verde on light           */
+  --sage-lt:      #142000;
 
-  --border:       rgba(8,20,8,.10);
-  --border-mid:   rgba(8,20,8,.16);
-  --border-hard:  rgba(8,20,8,.26);
+  --border:       rgba(26,10,4,.10);
+  --border-mid:   rgba(26,10,4,.16);
+  --border-hard:  rgba(26,10,4,.26);
 
   --shadow-sm:    0 1px 4px rgba(0,0,0,.07);
   --shadow-md:    0 4px 20px rgba(0,0,0,.10);
   --shadow-lg:    0 16px 48px rgba(0,0,0,.15);
-  --shadow-gold:  0 4px 24px rgba(42,122,56,.18);
+  --shadow-gold:  0 4px 24px rgba(184,104,16,.20);
 }
 
 /* ─── BASE RESET ─────────────────────────────────────────────────── */
@@ -2699,7 +2699,7 @@ select {
 /* 3. Feed mode tabs — active state uses teal accent instead of
    hard white-block inversion, which looked too heavy on Ocean Drift */
 .fmode-tab.active {
-  background: rgba(74, 170, 90, .13);
+  background: rgba(240, 168, 64, .13);
   color: var(--gold);
   border-color: var(--gold);
 }
